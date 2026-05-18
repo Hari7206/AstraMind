@@ -1,0 +1,33 @@
+# Dependencies
+node_modules
+
+# Environment variables
+.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage (if you use tests later)
+coverage/
+
+# OS junk files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Build output (if you add frontend/build later)
+dist/
+build/
