@@ -1,5 +1,7 @@
 import userModel from "../model/user.model.js";
+import cookieParser from "cookie-parser"
 import jwt from "jsonwebtoken"
+
 import { sendEmail } from "../services/mail.service.js";
 
 async function register(req , res  ) {
@@ -89,4 +91,66 @@ async function verifyEmail(req , res) {
 }
 
 
-export  {register , verifyEmail}
+
+async function login(req , res) {
+    const {email , password} = req.body
+
+    const user = await userModel.findOne({email : email})
+
+    if(!user) {
+        return res.status(400).json({
+            message : "Invalid email or password" ,
+            sucess : false ,
+            err : "Invalid email or password"
+        })
+    }
+    if(!user.isVerified) {
+        return res.status(400).json({
+            message : "Email is not verified" ,
+            sucess : false ,
+            err : "Email is not verified"
+        })
+    }
+    const isMatch = await user.comparePassword(password)
+    if(!isMatch) {
+        return res.status(400).json({
+            message : "Invalid email or password" ,
+            sucess : false ,
+            err : "Invalid email or password"
+        })
+    }
+    const token = jwt.sign({id : user._id} , process.env.JWT_SECRET_KEY , {expiresIn : "7d"})
+    res.cookie("token" , token )
+    return res.status(200).json({
+        message : "Login successful" ,
+        sucess : true ,
+        user : {
+            id : user._id ,
+            username : user.username ,
+            email : user.email
+        }
+    })
+
+}
+
+async function getMe(req , res) {
+    const userId = req.user.id
+    const user = await userModel.findById(userId).select("-password")
+
+    if(!user) {
+        return res.status(404).json({
+            message : "User not found" ,    
+            sucess : false ,
+            err : "User not found"
+        })
+    }
+
+    return res.status(200).json({
+        message : "User fetched successfully" ,
+        sucess : true ,
+        user
+    })
+    
+}
+
+export  {register , verifyEmail , login , getMe}
