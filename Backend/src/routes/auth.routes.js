@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { register , verifyEmail , login , getMe} from "../controller/auth.controller.js";
+import { register, verifyEmail, login, getMe } from "../controller/auth.controller.js";
 import { authUser } from "../middleware/auth.middleware.js";
-import { registerValidator , loginValidator} from "../validator/auth.validator.js";
+import { registerValidator, loginValidator } from "../validator/auth.validator.js";
 import { get } from "mongoose";
 
 const authRouter = Router();
@@ -28,7 +28,7 @@ authRouter.post(
     * @access Public
     * @query {token}
 */
-authRouter.get("/verify-email"  , verifyEmail)
+authRouter.get("/verify-email", verifyEmail)
 
 
 
@@ -39,9 +39,13 @@ authRouter.get("/verify-email"  , verifyEmail)
     * @body {email, password}
 */
 
-authRouter.post("/login" , loginValidator , login)
+authRouter.post("/login", loginValidator, login)
 export default authRouter;
 
 
-
-authRouter.get("/getMe"  , authUser , getMe) 
+/*
+    * @route GET /api/auth/getMe
+    * @desc Get current logged in user
+    * @access Private
+*/
+authRouter.get("/getMe", authUser, getMe) 
