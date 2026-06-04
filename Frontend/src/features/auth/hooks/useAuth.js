@@ -36,18 +36,21 @@ export function useAuth() {
     dispatch(setLoading(false));
   }
 }
-  async function handleGetMe() {
-    try {
-      dispatch(setLoading(true));
-      const data = await getMe();
-      dispatch(setUser(data));
-      return data;
-    } catch (error) {
-      dispatch(setError(error.message));
-    } finally {
-      dispatch(setLoading(false));
-    }
+async function handleGetMe() {
+  try {
+    dispatch(setLoading(true));
+
+    const data = await getMe();
+
+    console.log("GET ME RESPONSE:", data);
+
+    dispatch(setUser(data.user)); // 🔥 IMPORTANT FIX
+  } catch (error) {
+    dispatch(setError(error.message));
+  } finally {
+    dispatch(setLoading(false));
   }
+}
 
   return {
     handleRegister,
