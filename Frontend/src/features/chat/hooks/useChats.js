@@ -10,15 +10,19 @@ import {
     setChats,
     setCurrentChatId,
     setError,
-    setLoading
+    setLoading ,
+    createNewChat ,
+    addNewMessage ,
+    addMessages
 } from "../chat.slice.js";
 
+import { useCallback } from "react";
 import { useDispatch } from "react-redux";
 
 export const useChats = () => {
     const dispatch = useDispatch();
 
-    async function handleSendMessage(message, chatId) {
+    const handleSendMessage = useCallback(async (message, chatId) => {
         try {
             dispatch(setLoading(true));
 
@@ -27,30 +31,40 @@ export const useChats = () => {
                 chatId,
             });
             const { chat, aiMessage } = data;
-            dispatch(setChats((prev) => {
-                return {
-                    ...prev,
-                    [chat.title]: {
-                        ...chat,
-                        message: [{ content: message, role: "user" }, ...aiMessage]
-                    }
-                }
+            const resolvedChatId = chat?._id || chatId;
+
+            if (!resolvedChatId) {
+                throw new Error("Unable to find chat for this message");
+            }
+
+            dispatch(createNewChat({
+                chatId: resolvedChatId ,
+                title: chat?.title ,
             }))
-            dispatch(setCurrentChatId(chat._id))
+            dispatch(addNewMessage({
+                chatId: resolvedChatId ,
+                content: message ,
+                role: "user"
+            }))
+            dispatch(addNewMessage({
+                chatId: resolvedChatId ,
+                content: aiMessage?.content ,
+                role: aiMessage?.role || "ai" ,
+            }))
+            dispatch(setCurrentChatId(resolvedChatId))
         } catch (error) {
             dispatch(setError(error.message));
         } finally {
             dispatch(setLoading(false));
         }
-    };
+    }, [dispatch]);
 
-    const handleGetChats = async () => {
+    const handleGetChats = useCallback(async () => {
         try {
             dispatch(setLoading(true));
 
             const response = await getChats();
-
-            dispatch(setChats(response));
+            dispatch(setChats(response.chats || []));
 
             return response;
         } catch (error) {
@@ -58,30 +72,43 @@ export const useChats = () => {
         } finally {
             dispatch(setLoading(false));
         }
-    };
+    }, [dispatch]);
 
-    const handleGetMessages = async (chatId) => {
+
+    
+
+    const handleGetMessages = useCallback(async (chatId) => {
         try {
             dispatch(setLoading(true));
 
-            const response = await getMessages(chatId);
+            if (!chatId) return;
 
-            return response;
+            const response = await getMessages(chatId);
+            const { messages = [] } = response 
+            const formattedMessages = messages.map(msg =>({
+                content: msg.content,
+                role: msg.role,
+            }))
+            dispatch(addMessages({
+                chatId , 
+                messages: formattedMessages,
+            }))
+            dispatch(setCurrentChatId(chatId))
         } catch (error) {
             dispatch(setError(error.message));
         } finally {
             dispatch(setLoading(false));
         }
-    };
+    }, [dispatch]);
 
-    const handleDeleteChat = async (chatId) => {
+    const handleDeleteChat = useCallback(async (chatId) => {
         try {
             dispatch(setLoading(true));
 
             const response = await deleteChat(chatId);
 
             const updatedChats = await getChats();
-            dispatch(setChats(updatedChats));
+            dispatch(setChats(updatedChats.chats || []));
 
             return response;
         } catch (error) {
@@ -89,7 +116,7 @@ export const useChats = () => {
         } finally {
             dispatch(setLoading(false));
         }
-    };
+    }, [dispatch]);
 
     return {
         initializeSocketConnection,

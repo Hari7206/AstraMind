@@ -4,9 +4,11 @@ import { useAuth } from "../features/auth/hooks/useAuth";
 import { useEffect } from "react";
 
 function App() {
-  const auth = useAuth();
+  const { handleGetMe } = useAuth();
+
   useEffect(() => {
-   auth.handleGetMe()
+   handleGetMe()
+   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 
