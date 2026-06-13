@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { setCurrentChatId } from "../chat.slice";
+import { setCurrentChatId, updateStreamingMessage } from "../chat.slice";
 import { useChats } from "../hooks/useChats";
+import { initializeSocketConnection } from "../service/chat.socket";
 
 export default function Home() {
   const dispatch = useDispatch();
@@ -16,6 +17,7 @@ export default function Home() {
 
   const activeChat = currentChatId ? chats[currentChatId] : null;
 
+  // Fetch all chats on initial mount
   useEffect(() => {
     handleGetChats();
   }, [handleGetChats]);
@@ -34,15 +36,35 @@ export default function Home() {
     e.preventDefault();
 
     const trimmedMessage = message.trim();
-
     if (!trimmedMessage) return;
 
     await handleSendMessage(trimmedMessage, currentChatId);
     setMessage("");
   };
 
+  // Setup/Cleanup socket streaming updates whenever active chat changes
+  useEffect(() => {
+    if (!currentChatId) return;
+
+    const socket = initializeSocketConnection(
+      currentChatId,
+      dispatch,
+      { updateStreamingMessage }
+    );
+
+    return () => {
+      if (socket && typeof socket.disconnect === "function") {
+        socket.disconnect();
+      }
+    };
+  }, [currentChatId, dispatch]);
+
+  // Safely format chats map into an array for rendering
+  const chatList = chats ? Object.values(chats) : [];
+
   return (
     <div className="flex h-screen">
+      {/* Sidebar */}
       <div
         className={`bg-slate-900 text-white transition-all ${
           sidebarOpen ? "w-72" : "w-20"
@@ -51,7 +73,6 @@ export default function Home() {
         <div className="p-5 border-b border-slate-700 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <i className="fa-solid fa-brain text-blue-500 text-xl"></i>
-
             {sidebarOpen && <h1 className="text-xl font-bold">AstraMind</h1>}
           </div>
 
@@ -79,7 +100,7 @@ export default function Home() {
           )}
 
           <div className="space-y-2">
-            {Object.values(chats).map((chat) => (
+            {chatList.map((chat) => (
               <button
                 key={chat.id}
                 type="button"
@@ -99,6 +120,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Main Chat Area */}
       <div className="flex-1 flex flex-col bg-slate-100">
         <div className="bg-white border-b px-6 py-4">
           <h2 className="font-semibold text-lg">
@@ -127,6 +149,7 @@ export default function Home() {
           ))}
         </div>
 
+        {/* Input Bar */}
         <div className="bg-white border-t p-4">
           <form onSubmit={handleSubmit} className="max-w-5xl mx-auto">
             <div className="flex items-center bg-slate-100 rounded-2xl p-2">

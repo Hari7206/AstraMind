@@ -12,9 +12,16 @@ export const initSocket = (httpServer) => {
 
 
     console.log("Socket.io server initialized");
-    io.on('connection', (socket) => {
-        console.log('A user connected:', socket.id);  // here the id means every user has a unique id and everytime a user connects to the server, it will generate a new id for that user
-    });
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  // STEP 1: join chat room
+  socket.on("join-chat", (chatId) => {
+    if (!chatId) return;
+    socket.join(chatId);
+    console.log(`Joined chat room: ${chatId}`);
+  });
+});
 };
 
 

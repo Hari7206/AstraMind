@@ -1,13 +1,28 @@
-import {io} from "socket.io-client";
+import { io } from "socket.io-client";
 
-export const initializeSocketConnection = () => {
- const socket = io("http://localhost:3000", {
+let socket;
+
+export const initializeSocketConnection = (chatId, dispatch, actions) => {
+  socket = io("http://localhost:3000", {
     withCredentials: true,
-});
+  });
 
-    socket.on("connect", () => {
-        console.log("Connected to Socket.io server");
-    });
+  socket.on("connect", () => {
+    console.log("Connected:", socket.id);
 
-    return socket;
+    // join chat room
+    socket.emit("join-chat", chatId);
+  });
+
+  // AI START
+  socket.on("ai-start", () => {
+    console.log("AI started...");
+  });
+
+  // AI STREAM (REAL MAGIC)
+  socket.on("ai-stream", ({ chatId, chunk }) => {
+    dispatch(actions.updateStreamingMessage({ chatId, chunk }));
+  });
+
+  return socket;
 };

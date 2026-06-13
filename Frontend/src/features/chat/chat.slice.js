@@ -1,24 +1,23 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-
 const chatSlice = createSlice({
     name: 'chat',
     initialState: {
         chats: {},
         currentChatId: null,
-        isLoading: false ,
+        isLoading: false,
         error: null,
-    } ,
-    reducers:{
-        createNewChat: (state , action) => {
-            const {chatId , title} = action.payload
+    },
+    reducers: {
+        createNewChat: (state, action) => {
+            const { chatId, title } = action.payload
             if (!chatId) return
 
             if (!state.chats[chatId]) {
-                state.chats[ chatId ] = {
-                    id: chatId ,
+                state.chats[chatId] = {
+                    id: chatId,
                     title: title || "New Chat",
-                    messages: [] ,
+                    messages: [],
                     lastUpdated: new Date().toISOString(),
                 }
             } else {
@@ -26,8 +25,8 @@ const chatSlice = createSlice({
                 state.chats[chatId].lastUpdated = new Date().toISOString()
             }
         },
-        addNewMessage: (state , action) => {
-            const { chatId , content , role } = action.payload 
+        addNewMessage: (state, action) => {
+            const { chatId, content, role } = action.payload
             if (!chatId || !content) return
 
             if (!state.chats[chatId]) {
@@ -39,11 +38,11 @@ const chatSlice = createSlice({
                 }
             }
 
-            state.chats[chatId].messages.push({content , role})
+            state.chats[chatId].messages.push({ content, role })
             state.chats[chatId].lastUpdated = new Date().toISOString()
-        } ,
-        addMessages: (state , action) => {
-            const { chatId , messages } = action.payload
+        },
+        addMessages: (state, action) => {
+            const { chatId, messages } = action.payload
             if (!chatId || !Array.isArray(messages)) return
 
             if (!state.chats[chatId]) {
@@ -58,7 +57,31 @@ const chatSlice = createSlice({
             state.chats[chatId].messages = messages
             state.chats[chatId].lastUpdated = new Date().toISOString()
         },
-        setChats: (state , action) => {
+        // --- ADDED THE STREAMING REDUCER HERE ---
+        updateStreamingMessage: (state, action) => {
+            const { chatId, chunk } = action.payload;
+
+            const chat = state.chats[chatId];
+            if (!chat) return;
+
+            const messages = chat.messages;
+            const lastMsg = messages[messages.length - 1];
+
+            // if last message is AI → append
+            if (lastMsg && lastMsg.role === "ai") {
+                lastMsg.content += chunk;
+            } else {
+                // create new AI message
+                messages.push({
+                    role: "ai",
+                    content: chunk,
+                });
+            }
+            
+            // Optional: update the timestamp for the streaming update
+            chat.lastUpdated = new Date().toISOString();
+        },
+        setChats: (state, action) => {
             if (action.payload && !Array.isArray(action.payload) && !action.payload.chats) {
                 state.chats = action.payload
                 return
@@ -81,22 +104,31 @@ const chatSlice = createSlice({
 
                 return acc
             }, {})
-        } ,
-        setCurrentChatId:(state , action)=>{
+        },
+        setCurrentChatId: (state, action) => {
             state.currentChatId = action.payload
-        } ,
-        setLoading:(state , action)=>{
+        },
+        setLoading: (state, action) => {
             state.isLoading = action.payload
-        } ,
-        setError:(state , action) => {
+        },
+        setError: (state, action) => {
             state.error = action.payload
         }
     }
-
 })
 
+// --- INCLUDED updateStreamingMessage IN THE EXPORTS ---
+export const { 
+    setChats, 
+    setCurrentChatId, 
+    setLoading, 
+    setError, 
+    createNewChat, 
+    addNewMessage, 
+    addMessages,
+    updateStreamingMessage 
+} = chatSlice.actions
 
-export const {setChats , setCurrentChatId , setLoading , setError  , createNewChat , addNewMessage , addMessages} = chatSlice.actions
 export default chatSlice.reducer
 
 //  Chat = {

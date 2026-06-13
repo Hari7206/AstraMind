@@ -1,5 +1,6 @@
 import { generateResponse, generateTitle } from "../services/ai.service.js";
 import chatModel from "../model/chat.model.js";
+import { getIO } from "../sockets/server.socket.js";
 import messageModel from "../model/message.model.js";
 
 
@@ -26,14 +27,39 @@ export async function sendMessage(req, res) {
 
     const messages = await messageModel.find({ chat: chatId || chat._id })
 
-    const result = await generateResponse(messages);
 
-    const aiMessage = await messageModel.create({
-        chat: chatId || chat._id,
-        content: result,
-        role: "ai"
-    })
+    const io = getIO();
+    const chatIdFinal = chatId || chat._id;
 
+    // emit "AI started typing"
+    io.to(chatIdFinal).emit("ai-start", {
+        chatId: chatIdFinal,
+    });
+
+  const result = await generateResponse(messages);
+
+let fullText = "";
+for (let i = 0; i < result.length; i++) {
+    fullText += result[i];
+
+    io.to(chatIdFinal).emit("ai-stream", {
+        chatId: chatIdFinal,
+        chunk: result[i],
+    });
+
+    await new Promise((res) => setTimeout(res, 15)); // typing speed
+}
+    
+ io.to(chatIdFinal).emit("ai-done", {
+    chatId: chatIdFinal,
+    content: fullText,
+});
+
+ const aiMessage = await messageModel.create({
+    chat: chatIdFinal,
+    content: fullText,
+    role: "ai"
+});
 
     res.status(201).json({
         title,
