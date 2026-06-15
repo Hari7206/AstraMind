@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { setCurrentChatId, updateStreamingMessage } from "../chat.slice";
+// --- UPDATED: IMPORTED addNewMessage HERE ---
+import { setCurrentChatId, updateStreamingMessage, setAiThinking, addNewMessage } from "../chat.slice";
 import { useChats } from "../hooks/useChats";
 import { initializeSocketConnection } from "../service/chat.socket";
 
@@ -9,6 +10,7 @@ export default function Home() {
 
   const chats = useSelector((state) => state.chat.chats);
   const currentChatId = useSelector((state) => state.chat.currentChatId);
+  const isAiThinking = useSelector((state) => state.chat.isAiThinking);
 
   const { handleSendMessage, handleGetChats, handleGetMessages } = useChats();
 
@@ -32,14 +34,27 @@ export default function Home() {
     await handleGetMessages(chatId);
   };
 
+  // --- UPDATED FOR OPTIMISTIC RENDERING ---
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const trimmedMessage = message.trim();
     if (!trimmedMessage) return;
 
-    await handleSendMessage(trimmedMessage, currentChatId);
+    // 1. If it's an existing chat, dispatch the user message INSTANTLY so it shows up smoothly
+    if (currentChatId) {
+      dispatch(addNewMessage({
+        chatId: currentChatId,
+        content: trimmedMessage,
+        role: "user"
+      }));
+    }
+
+    // Clear input field immediately for a snappy feel
     setMessage("");
+
+    // 2. Fire off the backend request in the background
+    await handleSendMessage(trimmedMessage, currentChatId);
   };
 
   // Setup/Cleanup socket streaming updates whenever active chat changes
@@ -49,7 +64,7 @@ export default function Home() {
     const socket = initializeSocketConnection(
       currentChatId,
       dispatch,
-      { updateStreamingMessage }
+      { updateStreamingMessage, setAiThinking }
     );
 
     return () => {
@@ -147,6 +162,15 @@ export default function Home() {
               </div>
             </div>
           ))}
+
+          {/* AI IS TYPING PULSE INDICATOR */}
+          {isAiThinking && (
+            <div className="flex justify-start">
+              <div className="bg-white border px-4 py-2 rounded-xl text-gray-500 animate-pulse">
+                AI is typing...
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Input Bar */}
@@ -163,9 +187,14 @@ export default function Home() {
 
               <button
                 type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white w-12 h-12 rounded-xl"
+                disabled={isAiThinking}
+                className="bg-blue-600 hover:bg-blue-700 text-white w-12 h-12 rounded-xl flex items-center justify-center disabled:opacity-50"
               >
-                <i className="fa-solid fa-paper-plane"></i>
+                {isAiThinking ? (
+                  <i className="fa-solid fa-spinner fa-spin"></i>
+                ) : (
+                  <i className="fa-solid fa-paper-plane"></i>
+                )}
               </button>
             </div>
           </form>

@@ -7,8 +7,12 @@ const chatSlice = createSlice({
         currentChatId: null,
         isLoading: false,
         error: null,
+        isAiThinking: false,
     },
     reducers: {
+        setAiThinking: (state, action) => {
+            state.isAiThinking = action.payload;
+        },
         createNewChat: (state, action) => {
             const { chatId, title } = action.payload
             if (!chatId) return
@@ -25,22 +29,14 @@ const chatSlice = createSlice({
                 state.chats[chatId].lastUpdated = new Date().toISOString()
             }
         },
-        addNewMessage: (state, action) => {
-            const { chatId, content, role } = action.payload
-            if (!chatId || !content) return
+      addNewMessage: (state, action) => {
+  const { chatId, content, role } = action.payload;
 
-            if (!state.chats[chatId]) {
-                state.chats[chatId] = {
-                    id: chatId,
-                    title: "New Chat",
-                    messages: [],
-                    lastUpdated: new Date().toISOString(),
-                }
-            }
+  const chat = state.chats[chatId];
+  if (!chat) return;
 
-            state.chats[chatId].messages.push({ content, role })
-            state.chats[chatId].lastUpdated = new Date().toISOString()
-        },
+  chat.messages.push({ content, role });
+},
         addMessages: (state, action) => {
             const { chatId, messages } = action.payload
             if (!chatId || !Array.isArray(messages)) return
@@ -57,30 +53,25 @@ const chatSlice = createSlice({
             state.chats[chatId].messages = messages
             state.chats[chatId].lastUpdated = new Date().toISOString()
         },
-        // --- ADDED THE STREAMING REDUCER HERE ---
-        updateStreamingMessage: (state, action) => {
-            const { chatId, chunk } = action.payload;
+        
+    updateStreamingMessage: (state, action) => {
+  const { chatId, chunk } = action.payload;
 
-            const chat = state.chats[chatId];
-            if (!chat) return;
+  const chat = state.chats[chatId];
+  if (!chat) return;
 
-            const messages = chat.messages;
-            const lastMsg = messages[messages.length - 1];
+  let messages = chat.messages;
+  let lastMsg = messages[messages.length - 1];
 
-            // if last message is AI → append
-            if (lastMsg && lastMsg.role === "ai") {
-                lastMsg.content += chunk;
-            } else {
-                // create new AI message
-                messages.push({
-                    role: "ai",
-                    content: chunk,
-                });
-            }
-            
-            // Optional: update the timestamp for the streaming update
-            chat.lastUpdated = new Date().toISOString();
-        },
+  if (!lastMsg || lastMsg.role !== "ai") {
+    messages.push({
+      role: "ai",
+      content: chunk,
+    });
+  } else {
+    lastMsg.content += chunk;
+  }
+},
         setChats: (state, action) => {
             if (action.payload && !Array.isArray(action.payload) && !action.payload.chats) {
                 state.chats = action.payload
@@ -118,15 +109,16 @@ const chatSlice = createSlice({
 })
 
 // --- INCLUDED updateStreamingMessage IN THE EXPORTS ---
-export const { 
-    setChats, 
-    setCurrentChatId, 
-    setLoading, 
-    setError, 
-    createNewChat, 
-    addNewMessage, 
+export const {
+    setChats,
+    setCurrentChatId,
+    setLoading,
+    setError,
+    createNewChat,
+    addNewMessage,
     addMessages,
-    updateStreamingMessage 
+    updateStreamingMessage ,
+    setAiThinking,
 } = chatSlice.actions
 
 export default chatSlice.reducer

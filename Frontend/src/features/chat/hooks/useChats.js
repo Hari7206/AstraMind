@@ -30,28 +30,30 @@ export const useChats = () => {
                 message,
                 chatId,
             });
-            const { chat, aiMessage } = data;
+            const { chat } = data; 
             const resolvedChatId = chat?._id || chatId;
 
             if (!resolvedChatId) {
                 throw new Error("Unable to find chat for this message");
             }
 
-            dispatch(createNewChat({
-                chatId: resolvedChatId ,
-                title: chat?.title ,
-            }))
-            dispatch(addNewMessage({
-                chatId: resolvedChatId ,
-                content: message ,
-                role: "user"
-            }))
-            dispatch(addNewMessage({
-                chatId: resolvedChatId ,
-                content: aiMessage?.content ,
-                role: aiMessage?.role || "ai" ,
-            }))
-            dispatch(setCurrentChatId(resolvedChatId))
+            // --- HANDLING BRAND NEW CHATS VS EXISTING ---
+            if (!chatId) {
+                // First-time chat generation logic
+                dispatch(createNewChat({
+                    chatId: resolvedChatId ,
+                    title: chat?.title ,
+                }));
+                
+                dispatch(addNewMessage({
+                    chatId: resolvedChatId ,
+                    content: message ,
+                    role: "user"
+                }));
+                
+                dispatch(setCurrentChatId(resolvedChatId));
+            }
+            
         } catch (error) {
             dispatch(setError(error.message));
         } finally {
@@ -73,9 +75,6 @@ export const useChats = () => {
             dispatch(setLoading(false));
         }
     }, [dispatch]);
-
-
-    
 
     const handleGetMessages = useCallback(async (chatId) => {
         try {
