@@ -61,12 +61,23 @@ Do not answer from memory.
 
 export async function generateTitle(message) {
   const response = await model.invoke([
-    new SystemMessage(`You are a helpful assistant that generates concise and descriptive titles for given content.
-      
-      user will provide you with a message, and you will generate a title that captures the essence of the message in a few words. The title should be clear, engaging, and relevant to the content of the message.
-      `),
-    new HumanMessage(` Generate a title for the following message:
-      ${message}`)
+    new SystemMessage(`
+You are a title generator.
+
+Rules:
+- Generate VERY SHORT title (2–5 words max)
+- Make it UNIQUE for each message
+- Avoid generic titles like "Hello", "New Chat"
+- Never repeat same title pattern
+- Add context-specific words
+- No punctuation
+- No explanations
+`),
+    new HumanMessage(`
+Create a short unique chat title for:
+${message}
+    `),
   ]);
+
   return response.text;
 }

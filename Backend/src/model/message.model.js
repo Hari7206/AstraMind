@@ -8,13 +8,22 @@ const messageSchema = new mongoose.Schema({
     },
     content: {
         type: String,
-        required: true,
+        required: function() { return this.messageType === "text"; }, 
     },
     role: {
         type: String,
         enum: ["user", "ai"],
         required: true,
     },
+    messageType: {
+        type: String,
+        enum: ["text", "image"],
+        default: "text"
+    },
+    fileUrl: {
+        type: String, 
+        default: null
+    }
 },
     {
         timestamps: true,
@@ -23,4 +32,4 @@ const messageSchema = new mongoose.Schema({
 
 const messageModel = mongoose.model("message", messageSchema)
 
-export default messageModel
+export default messageModel;

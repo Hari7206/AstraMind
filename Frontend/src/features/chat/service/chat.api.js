@@ -34,3 +34,14 @@ export const deleteChat = async (chatId) => {
 
   return response.data;
 };
+
+
+
+export const generateImageApi = async ({ prompt, chatId }) => {
+  const res = await api.post("/api/ai/image", {
+    prompt,
+    chat: chatId,
+  });
+
+  return res.data;
+};

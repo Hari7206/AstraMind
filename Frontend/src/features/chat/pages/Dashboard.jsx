@@ -1,7 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
-// --- UPDATED: IMPORTED addNewMessage HERE ---
-import { setCurrentChatId, updateStreamingMessage, setAiThinking, addNewMessage } from "../chat.slice";
+import {
+  setCurrentChatId,
+  updateStreamingMessage,
+  setAiThinking,
+  addNewMessage,
+  createNewChat
+} from "../chat.slice";
 import { useChats } from "../hooks/useChats";
 import { initializeSocketConnection } from "../service/chat.socket";
 
@@ -12,17 +17,27 @@ export default function Home() {
   const currentChatId = useSelector((state) => state.chat.currentChatId);
   const isAiThinking = useSelector((state) => state.chat.isAiThinking);
 
-  const { handleSendMessage, handleGetChats, handleGetMessages } = useChats();
+  const {
+    handleSendMessage,
+    handleGetChats,
+    handleGetMessages,
+    handleGenerateImage: generateImageFromApi
+  } = useChats();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [message, setMessage] = useState("");
 
+  const chatEndRef = useRef(null);
+
   const activeChat = currentChatId ? chats[currentChatId] : null;
 
-  // Fetch all chats on initial mount
   useEffect(() => {
     handleGetChats();
   }, [handleGetChats]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [activeChat?.messages]);
 
   const handleNewChat = () => {
     dispatch(setCurrentChatId(null));
@@ -34,30 +49,81 @@ export default function Home() {
     await handleGetMessages(chatId);
   };
 
-  // --- UPDATED FOR OPTIMISTIC RENDERING ---
+  const handleImageClick = async () => {
+    const prompt = message.trim();
+    if (!prompt) return;
+
+    try {
+      dispatch(setAiThinking(true));
+
+      const data = await generateImageFromApi(prompt, currentChatId);
+
+      if (data && data.success) {
+        const activeSessionId = data.chatId || currentChatId;
+
+        if (!currentChatId && activeSessionId) {
+          dispatch(
+            createNewChat({
+              chatId: activeSessionId,
+              title: data.chat?.title || prompt
+            })
+          );
+          dispatch(setCurrentChatId(activeSessionId));
+        }
+
+        if (data.userMessage) {
+          dispatch(addNewMessage({
+            chatId: activeSessionId,
+            content: data.userMessage.content,
+            role: data.userMessage.role,
+            messageType: data.userMessage.messageType
+          }));
+        }
+
+        if (data.aiMessage) {
+          dispatch(addNewMessage({
+            chatId: activeSessionId,
+            content: data.aiMessage.content,
+            role: data.aiMessage.role,
+            messageType: data.aiMessage.messageType,
+            fileUrl: data.aiMessage.fileUrl
+          }));
+        }
+
+        if (!currentChatId && data.chatId) {
+          handleGetChats();
+        } else {
+          await handleGetMessages(activeSessionId);
+        }
+      }
+    } catch (err) {
+      console.error(err.message);
+    } finally {
+      dispatch(setAiThinking(false));
+      setMessage("");
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const trimmedMessage = message.trim();
     if (!trimmedMessage) return;
 
-    // 1. If it's an existing chat, dispatch the user message INSTANTLY so it shows up smoothly
     if (currentChatId) {
-      dispatch(addNewMessage({
-        chatId: currentChatId,
-        content: trimmedMessage,
-        role: "user"
-      }));
+      dispatch(
+        addNewMessage({
+          chatId: currentChatId,
+          content: trimmedMessage,
+          role: "user"
+        })
+      );
     }
 
-    // Clear input field immediately for a snappy feel
     setMessage("");
-
-    // 2. Fire off the backend request in the background
     await handleSendMessage(trimmedMessage, currentChatId);
   };
 
-  // Setup/Cleanup socket streaming updates whenever active chat changes
   useEffect(() => {
     if (!currentChatId) return;
 
@@ -74,27 +140,17 @@ export default function Home() {
     };
   }, [currentChatId, dispatch]);
 
-  // Safely format chats map into an array for rendering
-  const chatList = chats ? Object.values(chats) : [];
+  const chatList = Object.values(chats).sort(
+    (a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated)
+  );
 
   return (
     <div className="flex h-screen">
-      {/* Sidebar */}
-      <div
-        className={`bg-slate-900 text-white transition-all ${
-          sidebarOpen ? "w-72" : "w-20"
-        } flex flex-col`}
-      >
-        <div className="p-5 border-b border-slate-700 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <i className="fa-solid fa-brain text-blue-500 text-xl"></i>
-            {sidebarOpen && <h1 className="text-xl font-bold">AstraMind</h1>}
-          </div>
 
-          <button
-            type="button"
-            onClick={() => setSidebarOpen((prev) => !prev)}
-          >
+      <div className={`bg-slate-900 text-white transition-all ${sidebarOpen ? "w-72" : "w-20"} flex flex-col`}>
+        <div className="p-4 flex justify-between items-center">
+          {sidebarOpen && <span>AstraMind</span>}
+          <button type="button" onClick={() => setSidebarOpen((p) => !p)}>
             <i className="fa-solid fa-bars"></i>
           </button>
         </div>
@@ -124,19 +180,15 @@ export default function Home() {
                   currentChatId === chat.id ? "bg-slate-800" : "hover:bg-slate-800"
                 }`}
               >
-                {sidebarOpen ? (
-                  chat.title || chat.id
-                ) : (
-                  <i className="fa-solid fa-message"></i>
-                )}
+                {sidebarOpen ? chat.title || chat.id : <i className="fa-solid fa-message"></i>}
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Main Chat Area */}
       <div className="flex-1 flex flex-col bg-slate-100">
+
         <div className="bg-white border-b px-6 py-4">
           <h2 className="font-semibold text-lg">
             {activeChat?.title || "New Chat"}
@@ -144,12 +196,11 @@ export default function Home() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
           {activeChat?.messages?.map((msg, index) => (
             <div
               key={index}
-              className={`flex ${
-                msg.role === "user" ? "justify-end" : "justify-start"
-              }`}
+              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
                 className={`max-w-2xl px-5 py-3 rounded-2xl ${
@@ -158,47 +209,70 @@ export default function Home() {
                     : "bg-white border shadow-sm"
                 }`}
               >
-                {msg.content}
+                {(!msg.messageType || msg.messageType === "text") && (
+                  <p>{msg.content}</p>
+                )}
+
+                {msg.messageType === "image" && (
+                  <div className="flex flex-col gap-2 p-1">
+                    <img
+                      src={msg.fileUrl}
+                      alt={msg.content}
+                      className="max-w-xs sm:max-w-md rounded-xl shadow-sm border border-slate-200"
+                      loading="lazy"
+                    />
+                    <p className="text-xs text-slate-400 italic mt-1">
+                      {msg.content}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           ))}
 
-          {/* AI IS TYPING PULSE INDICATOR */}
+          <div ref={chatEndRef} />
+
           {isAiThinking && (
             <div className="flex justify-start">
               <div className="bg-white border px-4 py-2 rounded-xl text-gray-500 animate-pulse">
-                AI is typing...
+                AI is processing...
               </div>
             </div>
           )}
         </div>
 
-        {/* Input Bar */}
         <div className="bg-white border-t p-4">
           <form onSubmit={handleSubmit} className="max-w-5xl mx-auto">
-            <div className="flex items-center bg-slate-100 rounded-2xl p-2">
+            <div className="flex items-center bg-slate-100 rounded-2xl p-2 gap-2">
+
               <input
                 type="text"
-                placeholder="Ask AstraMind anything..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 className="flex-1 bg-transparent outline-none px-3 py-3"
               />
 
               <button
+                type="button"
+                onClick={handleImageClick}
+                disabled={isAiThinking}
+                className="bg-purple-600 text-white px-5 py-3 rounded-xl disabled:opacity-50"
+              >
+                Image
+              </button>
+
+              <button
                 type="submit"
                 disabled={isAiThinking}
-                className="bg-blue-600 hover:bg-blue-700 text-white w-12 h-12 rounded-xl flex items-center justify-center disabled:opacity-50"
+                className="bg-blue-600 text-white w-12 h-12 rounded-xl flex items-center justify-center disabled:opacity-50"
               >
-                {isAiThinking ? (
-                  <i className="fa-solid fa-spinner fa-spin"></i>
-                ) : (
-                  <i className="fa-solid fa-paper-plane"></i>
-                )}
+                <i className="fa-solid fa-paper-plane"></i>
               </button>
+
             </div>
           </form>
         </div>
+
       </div>
     </div>
   );

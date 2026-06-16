@@ -29,13 +29,18 @@ const chatSlice = createSlice({
                 state.chats[chatId].lastUpdated = new Date().toISOString()
             }
         },
-      addNewMessage: (state, action) => {
-  const { chatId, content, role } = action.payload;
-
-  const chat = state.chats[chatId];
-  if (!chat) return;
-
-  chat.messages.push({ content, role });
+   addNewMessage: (state, action) => {
+  const { chatId, content, role, messageType, fileUrl } = action.payload;
+  if (state.chats[chatId]) {
+    state.chats[chatId].messages.push({
+      content,
+      role,
+      messageType: messageType || "text",
+      fileUrl: fileUrl || null,
+      timestamp: new Date().toISOString()
+    });
+    state.chats[chatId].lastUpdated = new Date().toISOString();
+  }
 },
         addMessages: (state, action) => {
             const { chatId, messages } = action.payload
@@ -51,7 +56,6 @@ const chatSlice = createSlice({
             }
 
             state.chats[chatId].messages = messages
-            state.chats[chatId].lastUpdated = new Date().toISOString()
         },
         
     updateStreamingMessage: (state, action) => {

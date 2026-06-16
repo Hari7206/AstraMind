@@ -3,7 +3,8 @@ import {
     sendMessage,
     getChats,
     getMessages,
-    deleteChat
+    deleteChat ,
+    generateImageApi
 } from "../service/chat.api.js";
 
 import {
@@ -87,6 +88,8 @@ export const useChats = () => {
             const formattedMessages = messages.map(msg =>({
                 content: msg.content,
                 role: msg.role,
+                messageType: msg.messageType || "text",
+                fileUrl: msg.fileUrl || null,
             }))
             dispatch(addMessages({
                 chatId , 
@@ -117,11 +120,28 @@ export const useChats = () => {
         }
     }, [dispatch]);
 
-    return {
-        initializeSocketConnection,
-        handleSendMessage,
-        handleGetChats,
-        handleGetMessages,
-        handleDeleteChat,
-    };
+
+
+
+const handleGenerateImage = useCallback(async (prompt, chatId) => {
+  try {
+    return await generateImageApi({
+      prompt,
+      chatId
+    });
+  } catch (error) {
+    console.error("API Call inside hook failed:", error);
+    throw error;
+  }
+}, []);
+
+  // Ensure this object contains only valid references
+  return {
+      initializeSocketConnection,
+      handleSendMessage,
+      handleGetChats,
+      handleGetMessages,
+      handleDeleteChat,
+      handleGenerateImage
+  };
 };
