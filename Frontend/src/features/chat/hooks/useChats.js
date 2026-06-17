@@ -1,9 +1,10 @@
 import { initializeSocketConnection } from "../service/chat.socket.js";
+import { useSelector } from "react-redux";
 import {
     sendMessage,
     getChats,
     getMessages,
-    deleteChat ,
+    deleteChat,
     generateImageApi
 } from "../service/chat.api.js";
 
@@ -11,9 +12,9 @@ import {
     setChats,
     setCurrentChatId,
     setError,
-    setLoading ,
-    createNewChat ,
-    addNewMessage ,
+    setLoading,
+    createNewChat,
+    addNewMessage,
     addMessages
 } from "../chat.slice.js";
 
@@ -22,45 +23,27 @@ import { useDispatch } from "react-redux";
 
 export const useChats = () => {
     const dispatch = useDispatch();
+    const selectedModel = useSelector(
+        (state) => state.chat.selectedModel
+    );
 
-    const handleSendMessage = useCallback(async (message, chatId) => {
-        try {
-            dispatch(setLoading(true));
 
-            const data = await sendMessage({
-                message,
-                chatId,
-            });
-            const { chat } = data; 
-            const resolvedChatId = chat?._id || chatId;
+const handleSendMessage = useCallback(async (message, chatId) => {
+    try {
+        dispatch(setLoading(true));
 
-            if (!resolvedChatId) {
-                throw new Error("Unable to find chat for this message");
-            }
+        const data = await sendMessage({
+            message,
+            chatId,
+            model: selectedModel,
+        });
 
-            // --- HANDLING BRAND NEW CHATS VS EXISTING ---
-            if (!chatId) {
-                // First-time chat generation logic
-                dispatch(createNewChat({
-                    chatId: resolvedChatId ,
-                    title: chat?.title ,
-                }));
-                
-                dispatch(addNewMessage({
-                    chatId: resolvedChatId ,
-                    content: message ,
-                    role: "user"
-                }));
-                
-                dispatch(setCurrentChatId(resolvedChatId));
-            }
-            
-        } catch (error) {
-            dispatch(setError(error.message));
-        } finally {
-            dispatch(setLoading(false));
-        }
-    }, [dispatch]);
+    } catch (error) {
+        dispatch(setError(error.message));
+    } finally {
+        dispatch(setLoading(false));
+    }
+}, [dispatch, selectedModel]);
 
     const handleGetChats = useCallback(async () => {
         try {
@@ -84,15 +67,15 @@ export const useChats = () => {
             if (!chatId) return;
 
             const response = await getMessages(chatId);
-            const { messages = [] } = response 
-            const formattedMessages = messages.map(msg =>({
+            const { messages = [] } = response
+            const formattedMessages = messages.map(msg => ({
                 content: msg.content,
                 role: msg.role,
                 messageType: msg.messageType || "text",
                 fileUrl: msg.fileUrl || null,
             }))
             dispatch(addMessages({
-                chatId , 
+                chatId,
                 messages: formattedMessages,
             }))
             dispatch(setCurrentChatId(chatId))
@@ -123,25 +106,25 @@ export const useChats = () => {
 
 
 
-const handleGenerateImage = useCallback(async (prompt, chatId) => {
-  try {
-    return await generateImageApi({
-      prompt,
-      chatId
-    });
-  } catch (error) {
-    console.error("API Call inside hook failed:", error);
-    throw error;
-  }
-}, []);
+    const handleGenerateImage = useCallback(async (prompt, chatId) => {
+        try {
+            return await generateImageApi({
+                prompt,
+                chatId
+            });
+        } catch (error) {
+            console.error("API Call inside hook failed:", error);
+            throw error;
+        }
+    }, []);
 
-  // Ensure this object contains only valid references
-  return {
-      initializeSocketConnection,
-      handleSendMessage,
-      handleGetChats,
-      handleGetMessages,
-      handleDeleteChat,
-      handleGenerateImage
-  };
+    // Ensure this object contains only valid references
+    return {
+        initializeSocketConnection,
+        handleSendMessage,
+        handleGetChats,
+        handleGetMessages,
+        handleDeleteChat,
+        handleGenerateImage
+    };
 };
