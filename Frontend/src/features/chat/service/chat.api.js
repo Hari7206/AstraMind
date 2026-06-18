@@ -5,13 +5,18 @@ baseURL: "http://localhost:3000",
   withCredentials: true,
 });
 
-export const sendMessage = async ({ message, chatId }) => {
-  const response = await api.post("/api/chats/message", {
+export const sendMessage = async ({
     message,
-    chat: chatId,
-  });
+    chatId,
+    model
+}) => {
+    const response = await api.post("/api/chats/message", {
+        message,
+        chat: chatId,
+        model,
+    });
 
-  return response.data;
+    return response.data;
 };
 
 export const getChats = async () => {

@@ -8,7 +8,7 @@ const chatSlice = createSlice({
         isLoading: false,
         error: null,
         isAiThinking: false,
-        selectedModel: "mistral",
+      selectedModel: "mistral",
     },
     reducers: {
         setModel: (state, action) => {
@@ -34,13 +34,14 @@ const chatSlice = createSlice({
             }
         },
         addNewMessage: (state, action) => {
-            const { chatId, content, role, messageType, fileUrl } = action.payload;
+            const { chatId, content, role, messageType, fileUrl, model } = action.payload;
             if (state.chats[chatId]) {
                 state.chats[chatId].messages.push({
                     content,
                     role,
                     messageType: messageType || "text",
                     fileUrl: fileUrl || null,
+                    model: model || null,
                     timestamp: new Date().toISOString()
                 });
                 state.chats[chatId].lastUpdated = new Date().toISOString();
@@ -63,7 +64,7 @@ const chatSlice = createSlice({
         },
 
         updateStreamingMessage: (state, action) => {
-            const { chatId, chunk } = action.payload;
+            const { chatId, chunk, model } = action.payload;
 
             const chat = state.chats[chatId];
             if (!chat) return;
@@ -75,9 +76,12 @@ const chatSlice = createSlice({
                 messages.push({
                     role: "ai",
                     content: chunk,
+                    model: model || null,
+                    messageType: "text",
                 });
             } else {
                 lastMsg.content += chunk;
+                lastMsg.model = model || lastMsg.model || null;
             }
         },
         setChats: (state, action) => {

@@ -21,6 +21,14 @@ import {
 import { useCallback } from "react";
 import { useDispatch } from "react-redux";
 
+const formatMessage = (msg) => ({
+    content: msg.content,
+    role: msg.role,
+    messageType: msg.messageType || "text",
+    fileUrl: msg.fileUrl || null,
+    model: msg.model || null,
+});
+
 export const useChats = () => {
     const dispatch = useDispatch();
     const selectedModel = useSelector(
@@ -28,22 +36,56 @@ export const useChats = () => {
     );
 
 
-const handleSendMessage = useCallback(async (message, chatId) => {
-    try {
-        dispatch(setLoading(true));
+    const handleSendMessage = useCallback(async (message, chatId, modelOverride) => {
+        try {
+            dispatch(setLoading(true));
 
-        const data = await sendMessage({
-            message,
-            chatId,
-            model: selectedModel,
-        });
+            const data = await sendMessage({
+                message,
+                chatId,
+                model: modelOverride || selectedModel,
+            });
 
-    } catch (error) {
-        dispatch(setError(error.message));
-    } finally {
-        dispatch(setLoading(false));
-    }
-}, [dispatch, selectedModel]);
+            const activeChatId = data.chat?._id || chatId;
+
+            if (data.chat?._id) {
+                dispatch(createNewChat({
+                    chatId: data.chat._id,
+                    title: data.chat.title || data.title || "New Chat",
+                }));
+                dispatch(setCurrentChatId(data.chat._id));
+            }
+
+            if (activeChatId && data.userMessage && !chatId) {
+                dispatch(addNewMessage({
+                    chatId: activeChatId,
+                    ...formatMessage(data.userMessage),
+                }));
+            }
+
+            if (activeChatId && data.aiMessage) {
+                if (chatId) {
+                    const response = await getMessages(activeChatId);
+                    dispatch(addMessages({
+                        chatId: activeChatId,
+                        messages: (response.messages || []).map(formatMessage),
+                    }));
+                } else {
+                    dispatch(addNewMessage({
+                        chatId: activeChatId,
+                        ...formatMessage(data.aiMessage),
+                    }));
+                }
+            }
+
+            return data;
+        } catch (error) {
+            dispatch(setError(error.message));
+            throw error;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    }, [dispatch, selectedModel]);
 
     const handleGetChats = useCallback(async () => {
         try {
@@ -68,12 +110,7 @@ const handleSendMessage = useCallback(async (message, chatId) => {
 
             const response = await getMessages(chatId);
             const { messages = [] } = response
-            const formattedMessages = messages.map(msg => ({
-                content: msg.content,
-                role: msg.role,
-                messageType: msg.messageType || "text",
-                fileUrl: msg.fileUrl || null,
-            }))
+            const formattedMessages = messages.map(formatMessage)
             dispatch(addMessages({
                 chatId,
                 messages: formattedMessages,

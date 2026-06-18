@@ -21,8 +21,8 @@ export const initializeSocketConnection = (chatId, dispatch, actions) => {
   });
 
   
-  socket.on("ai-stream", ({ chatId, chunk }) => {
-    dispatch(actions.updateStreamingMessage({ chatId, chunk }));
+  socket.on("ai-stream", ({ chatId, chunk, model }) => {
+    dispatch(actions.updateStreamingMessage({ chatId, chunk, model }));
   });
 
 

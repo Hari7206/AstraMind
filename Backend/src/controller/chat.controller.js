@@ -1,4 +1,4 @@
-import { generateResponse, generateTitle } from "../services/ai.service.js";
+import { generateTitle } from "../services/ai.service.js";
 import chatModel from "../model/chat.model.js";
 import { aiRouter } from "../services/aiRouter.service.js";
 import { getIO } from "../sockets/server.socket.js";
@@ -9,12 +9,12 @@ import messageModel from "../model/message.model.js";
 
 export async function sendMessage(req, res) {
   const { message, chat: chatId, model: selectedModel } = req.body;
+const allowedModels = ["mistral", "groq"];
 
-  const allowedModels = ["mistral", "zephyr"];
+const model = allowedModels.includes(selectedModel)
+  ? selectedModel
+  : "mistral";
 
-  const model = allowedModels.includes(selectedModel)
-    ? selectedModel
-    : "mistral";
 
   let title = null,
     chat = null;
@@ -42,6 +42,7 @@ export async function sendMessage(req, res) {
 
   io.to(chatIdFinal).emit("ai-start", {
     chatId: chatIdFinal,
+    model,
   });
 
   const result = await aiRouter({
@@ -62,6 +63,7 @@ export async function sendMessage(req, res) {
     io.to(chatIdFinal).emit("ai-stream", {
       chatId: chatIdFinal,
       chunk: text[i],
+      model,
     });
 
     await new Promise((res) => setTimeout(res, 15));
@@ -70,17 +72,20 @@ export async function sendMessage(req, res) {
   io.to(chatIdFinal).emit("ai-done", {
     chatId: chatIdFinal,
     content: fullText,
+    model,
   });
 
   const aiMessage = await messageModel.create({
     chat: chatIdFinal,
     content: fullText,
     role: "ai",
+    model,
   });
 
   res.status(201).json({
     title,
     chat,
+    userMessage,
     aiMessage,
   });
 }

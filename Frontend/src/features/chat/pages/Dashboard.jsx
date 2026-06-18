@@ -17,7 +17,7 @@ export default function Home() {
   const chats = useSelector((state) => state.chat.chats);
   const currentChatId = useSelector((state) => state.chat.currentChatId);
   const isAiThinking = useSelector((state) => state.chat.isAiThinking);
-  const selectedModel = useSelector((state) => state.chat.selectedModel || "gemini");
+  const selectedModel = useSelector((state) => state.chat.selectedModel || "mistral");
 
   const {
     handleSendMessage,
@@ -123,7 +123,6 @@ export default function Home() {
     }
 
     setMessage("");
-    // Step 4 integration: Pass selected model upstream to your hooks framework
     await handleSendMessage(trimmedMessage, currentChatId, selectedModel);
   };
 
@@ -180,9 +179,8 @@ export default function Home() {
                 key={chat.id}
                 type="button"
                 onClick={() => handleSelectChat(chat.id)}
-                className={`w-full text-left p-3 rounded-lg ${
-                  currentChatId === chat.id ? "bg-slate-800" : "hover:bg-slate-800"
-                }`}
+                className={`w-full text-left p-3 rounded-lg ${currentChatId === chat.id ? "bg-slate-800" : "hover:bg-slate-800"
+                  }`}
               >
                 {sidebarOpen ? chat.title || chat.id : <i className="fa-solid fa-message"></i>}
               </button>
@@ -194,7 +192,7 @@ export default function Home() {
       {/* Primary Workspace */}
       <div className="flex-1 flex flex-col bg-slate-100">
 
-        {/* STEP 4.1 Header Level Upgrade */}
+        {/* Header Level Upgrade */}
         <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="font-semibold text-lg text-slate-800">
@@ -206,15 +204,15 @@ export default function Home() {
             <span className="text-xs font-semibold bg-slate-200 text-slate-700 px-2.5 py-1 rounded-md uppercase tracking-wider">
               Selected: {selectedModel}
             </span>
-            
-            <select
-              value={selectedModel}
-             onChange={(e) => dispatch(setModel(e.target.value))}
-              className="bg-slate-100 border border-slate-200 text-black text-sm px-3 py-1 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-            >
-              <option value="gemini">Gemini 🧠</option>
-              <option value="mistral">Mistral ⚡</option>
-            </select>
+
+         <select
+  value={selectedModel}
+  onChange={(e) => dispatch(setModel(e.target.value))}
+  className="bg-slate-100 border border-slate-200 text-black text-sm px-3 py-1 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+>
+  <option value="mistral">Mistral</option>
+  <option value="groq">Groq (LLaMA 3)</option>
+</select>
           </div>
         </div>
 
@@ -225,7 +223,6 @@ export default function Home() {
               key={index}
               className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
             >
-              {/* STEP 4.2 & 4.3 AI Metadata Header Tag */}
               {msg.role === "ai" && (
                 <div className="text-xs font-medium text-gray-500 mb-1 ml-2 flex items-center gap-1">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
@@ -234,11 +231,10 @@ export default function Home() {
               )}
 
               <div
-                className={`max-w-2xl px-5 py-3 rounded-2xl ${
-                  msg.role === "user"
+                className={`max-w-2xl px-5 py-3 rounded-2xl ${msg.role === "user"
                     ? "bg-blue-600 text-white"
                     : "bg-white border shadow-sm"
-                }`}
+                  }`}
               >
                 {(!msg.messageType || msg.messageType === "text") && (
                   <p className="whitespace-pre-wrap">{msg.content}</p>

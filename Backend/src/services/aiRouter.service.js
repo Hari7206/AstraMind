@@ -1,34 +1,20 @@
 import { generateResponse as mistralResponse } from "./ai.service.js";
-import axios from "axios";
+import { generateGroqResponse } from "./models/groq.service.js";
 
 export async function aiRouter({ messages, model }) {
 
-  if (model === "mistral") {
-    return await mistralResponse(messages);
-  }
+    console.log("MODEL SELECTED:", model);
 
-  if (model === "zephyr") {
-    return await callZephyr(messages);
-  }
-
-  // fallback always safe
-  return await mistralResponse(messages);
-}
-
-async function callZephyr(messages) {
-  const prompt = messages
-    .map(m => `${m.role}: ${m.content}`)
-    .join("\n");
-
-  const res = await axios.post(
-    "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta",
-    { inputs: prompt },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.HF_API_KEY}`,
-      },
+    if (model === "mistral") {
+        console.log("USING MISTRAL");
+        return await mistralResponse(messages);
     }
-  );
 
-  return res.data?.[0]?.generated_text || "No response";
+    if (model === "groq" || model === "zephyr") {
+        console.log("USING GROQ");
+        return await generateGroqResponse(messages);
+    }
+
+    console.log("FALLBACK TO MISTRAL");
+    return await mistralResponse(messages);
 }

@@ -20,6 +20,11 @@ const messageSchema = new mongoose.Schema({
         enum: ["text", "image"],
         default: "text"
     },
+  model: {
+  type: String,
+  enum: ["mistral", "groq"],
+  default: "mistral"
+},
     fileUrl: {
         type: String, 
         default: null
