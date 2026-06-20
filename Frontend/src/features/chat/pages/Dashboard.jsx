@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom"; // Added navigate import
+import { useNavigate } from "react-router-dom";
 import {
   setCurrentChatId,
   updateStreamingMessage,
@@ -14,7 +14,7 @@ import { initializeSocketConnection } from "../service/chat.socket";
 
 export default function Home() {
   const dispatch = useDispatch();
-  const navigate = useNavigate(); // Initialized navigate hook
+  const navigate = useNavigate();
 
   const chats = useSelector((state) => state.chat.chats);
   const currentChatId = useSelector((state) => state.chat.currentChatId);
@@ -30,7 +30,8 @@ export default function Home() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [message, setMessage] = useState("");
-  const [copiedMessageIndex, setCopiedMessageIndex] = useState(null); // Tracking state for copy feedback
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState(null);
+  const [speechState, setSpeechState] = useState({ index: null, status: "stopped" });
 
   const chatEndRef = useRef(null);
 
@@ -44,6 +45,12 @@ export default function Home() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeChat?.messages]);
 
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis?.cancel();
+    };
+  }, [currentChatId]);
+
   const handleNewChat = () => {
     dispatch(setCurrentChatId(null));
     setMessage("");
@@ -54,11 +61,56 @@ export default function Home() {
     await handleGetMessages(chatId);
   };
 
-  // Helper method for temporary visual feedback upon copying text
   const handleCopyText = (text, index) => {
     navigator.clipboard.writeText(text);
     setCopiedMessageIndex(index);
     setTimeout(() => setCopiedMessageIndex(null), 2000);
+  };
+
+  const handleToggleSpeech = (text, index) => {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+
+    if (speechState.index === index) {
+      if (speechState.status === "playing") {
+        synth.pause();
+        setSpeechState({ index, status: "paused" });
+      } else if (speechState.status === "paused") {
+        synth.resume();
+        setSpeechState({ index, status: "playing" });
+      } else {
+        startSpeaking(text, index, synth);
+      }
+    } else {
+      synth.cancel(); 
+      startSpeaking(text, index, synth);
+    }
+  };
+
+  const startSpeaking = (text, index, synth) => {
+    const cleanText = text.replace(/\[.*?\]\(.*?\)/g, "").trim();
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+
+    const voices = synth.getVoices();
+    const femaleVoice = voices.find(
+      (v) =>
+        v.name.toLowerCase().includes("female") ||
+        v.name.toLowerCase().includes("zira") ||
+        v.name.toLowerCase().includes("google uk english female") ||
+        v.name.toLowerCase().includes("natural")
+    );
+    if (femaleVoice) utterance.voice = femaleVoice;
+
+    utterance.onend = () => {
+      setSpeechState({ index: null, status: "stopped" });
+    };
+
+    utterance.onerror = () => {
+      setSpeechState({ index: null, status: "stopped" });
+    };
+
+    setSpeechState({ index, status: "playing" });
+    synth.speak(utterance);
   };
 
   const handleImageClick = async () => {
@@ -159,7 +211,6 @@ export default function Home() {
   return (
     <div className="flex h-screen">
 
-      {/* Sidebar Navigation */}
       <div className={`bg-slate-900 text-white transition-all ${sidebarOpen ? "w-72" : "w-20"} flex flex-col`}>
         <div className="p-4 flex justify-between items-center">
           {sidebarOpen && <span>AstraMind</span>}
@@ -177,7 +228,6 @@ export default function Home() {
             {sidebarOpen ? "New Chat" : "+"}
           </button>
           
-          {/* Gallery Button Added Below New Chat */}
           <button
             type="button"
             onClick={() => navigate("/gallery")}
@@ -208,10 +258,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Primary Workspace */}
       <div className="flex-1 flex flex-col bg-slate-100">
 
-        {/* Header Level Upgrade */}
         <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="font-semibold text-lg text-slate-800">
@@ -235,10 +283,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Messages Layout Container */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {activeChat?.messages?.map((msg, index) => (
-            /* added "group" class here to listen for mouse hovers over the entire row */
             <div
               key={index}
               className={`flex flex-col group ${msg.role === "user" ? "items-end" : "items-start"}`}
@@ -250,7 +296,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Chat Bubble Layout Container */}
               <div
                 className={`max-w-2xl px-5 py-3 rounded-2xl ${
                   msg.role === "user"
@@ -258,12 +303,10 @@ export default function Home() {
                     : "bg-white border shadow-sm text-slate-800"
                 }`}
               >
-                {/* USER/AI TEXT */}
                 {(!msg.messageType || msg.messageType === "text") && (
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                 )}
 
-                {/* IMAGE MESSAGE */}
                 {msg.messageType === "image" && (
                   <div className="flex flex-col gap-2 p-1">
                     <img
@@ -279,8 +322,28 @@ export default function Home() {
                 )}
               </div>
 
-              {/* ✅ CHATGPT/GEMINI LAYOUT: BELOW CHAT & ONLY SHOWS ON HOVER (`opacity-0 group-hover:opacity-100`) */}
-              <div className="mt-1 flex items-center px-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="mt-1 flex items-center gap-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                {(!msg.messageType || msg.messageType === "text") && (
+                  <button
+                    type="button"
+                    onClick={() => handleToggleSpeech(msg.content, index)}
+                    className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-md transition-colors bg-transparent border-none cursor-pointer"
+                    title={
+                      speechState.index === index && speechState.status === "playing"
+                        ? "Pause"
+                        : "Read aloud"
+                    }
+                  >
+                    {speechState.index === index && speechState.status === "playing" ? (
+                      <i className="fa-solid fa-square text-xs text-slate-400"></i>
+                    ) : speechState.index === index && speechState.status === "paused" ? (
+                      <i className="ri-volume-up-line text-base text-blue-500 animate-pulse"></i>
+                    ) : (
+                      <i className="ri-volume-up-line text-base"></i>
+                    )}
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => handleCopyText(msg.content, index)}
@@ -309,7 +372,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* Prompt Input Area Footer */}
         <div className="bg-white border-t p-4">
           <form onSubmit={handleSubmit} className="max-w-5xl mx-auto">
             <div className="flex items-center bg-slate-100 rounded-2xl p-2 gap-2">
