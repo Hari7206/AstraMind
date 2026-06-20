@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom"; // Added navigate import
 import {
   setCurrentChatId,
   updateStreamingMessage,
@@ -13,6 +14,7 @@ import { initializeSocketConnection } from "../service/chat.socket";
 
 export default function Home() {
   const dispatch = useDispatch();
+  const navigate = useNavigate(); // Initialized navigate hook
 
   const chats = useSelector((state) => state.chat.chats);
   const currentChatId = useSelector((state) => state.chat.currentChatId);
@@ -28,6 +30,7 @@ export default function Home() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [message, setMessage] = useState("");
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState(null); // Tracking state for copy feedback
 
   const chatEndRef = useRef(null);
 
@@ -49,6 +52,13 @@ export default function Home() {
   const handleSelectChat = async (chatId) => {
     dispatch(setCurrentChatId(chatId));
     await handleGetMessages(chatId);
+  };
+
+  // Helper method for temporary visual feedback upon copying text
+  const handleCopyText = (text, index) => {
+    navigator.clipboard.writeText(text);
+    setCopiedMessageIndex(index);
+    setTimeout(() => setCopiedMessageIndex(null), 2000);
   };
 
   const handleImageClick = async () => {
@@ -158,13 +168,22 @@ export default function Home() {
           </button>
         </div>
 
-        <div className="p-4">
+        <div className="p-4 flex flex-col gap-2">
           <button
             type="button"
             onClick={handleNewChat}
-            className="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-lg"
+            className="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-lg transition-colors"
           >
             {sidebarOpen ? "New Chat" : "+"}
+          </button>
+          
+          {/* Gallery Button Added Below New Chat */}
+          <button
+            type="button"
+            onClick={() => navigate("/gallery")}
+            className="w-full bg-purple-600 hover:bg-purple-700 py-2 rounded-lg transition-colors"
+          >
+            {sidebarOpen ? "Gallery" : "🖼"}
           </button>
         </div>
 
@@ -205,23 +224,24 @@ export default function Home() {
               Selected: {selectedModel}
             </span>
 
-         <select
-  value={selectedModel}
-  onChange={(e) => dispatch(setModel(e.target.value))}
-  className="bg-slate-100 border border-slate-200 text-black text-sm px-3 py-1 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-medium"
->
-  <option value="mistral">Mistral</option>
-  <option value="groq">Groq (LLaMA 3)</option>
-</select>
+            <select
+              value={selectedModel}
+              onChange={(e) => dispatch(setModel(e.target.value))}
+              className="bg-slate-100 border border-slate-200 text-black text-sm px-3 py-1 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+            >
+              <option value="mistral">Mistral</option>
+              <option value="groq">Groq (LLaMA 3)</option>
+            </select>
           </div>
         </div>
 
         {/* Messages Layout Container */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {activeChat?.messages?.map((msg, index) => (
+            /* added "group" class here to listen for mouse hovers over the entire row */
             <div
               key={index}
-              className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
+              className={`flex flex-col group ${msg.role === "user" ? "items-end" : "items-start"}`}
             >
               {msg.role === "ai" && (
                 <div className="text-xs font-medium text-gray-500 mb-1 ml-2 flex items-center gap-1">
@@ -230,16 +250,20 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Chat Bubble Layout Container */}
               <div
-                className={`max-w-2xl px-5 py-3 rounded-2xl ${msg.role === "user"
+                className={`max-w-2xl px-5 py-3 rounded-2xl ${
+                  msg.role === "user"
                     ? "bg-blue-600 text-white"
-                    : "bg-white border shadow-sm"
-                  }`}
+                    : "bg-white border shadow-sm text-slate-800"
+                }`}
               >
+                {/* USER/AI TEXT */}
                 {(!msg.messageType || msg.messageType === "text") && (
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                 )}
 
+                {/* IMAGE MESSAGE */}
                 {msg.messageType === "image" && (
                   <div className="flex flex-col gap-2 p-1">
                     <img
@@ -254,6 +278,23 @@ export default function Home() {
                   </div>
                 )}
               </div>
+
+              {/* ✅ CHATGPT/GEMINI LAYOUT: BELOW CHAT & ONLY SHOWS ON HOVER (`opacity-0 group-hover:opacity-100`) */}
+              <div className="mt-1 flex items-center px-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <button
+                  type="button"
+                  onClick={() => handleCopyText(msg.content, index)}
+                  className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-md transition-colors bg-transparent border-none cursor-pointer"
+                  title="Copy"
+                >
+                  {copiedMessageIndex === index ? (
+                    <i className="fa-solid fa-check text-emerald-500 text-sm"></i>
+                  ) : (
+                    <i className="fa-regular fa-copy text-sm"></i>
+                  )}
+                </button>
+              </div>
+
             </div>
           ))}
 

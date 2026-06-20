@@ -66,3 +66,31 @@ export const imageController = async (req, res) => {
     });
   }
 };
+
+
+export const getGalleryImages = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const images = await messageModel.find({
+      role: "ai",
+      messageType: "image"
+    }).populate({
+      path: "chat",
+      match: { user: userId }
+    });
+
+    const filteredImages = images.filter(img => img.chat !== null);
+
+    return res.status(200).json({
+      success: true,
+      images: filteredImages
+    });
+
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+};
