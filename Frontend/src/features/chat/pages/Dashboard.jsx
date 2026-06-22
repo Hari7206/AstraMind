@@ -33,8 +33,12 @@ export default function Home() {
   const [copiedMessageIndex, setCopiedMessageIndex] = useState(null);
   const [speechState, setSpeechState] = useState({ index: null, status: "stopped" });
 
-  const chatEndRef = useRef(null);
+  // --- Speech Recognition States ---
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+  const baseMessageRef = useRef(""); // Keeps track of text before turning on mic
 
+  const chatEndRef = useRef(null);
   const activeChat = currentChatId ? chats[currentChatId] : null;
 
   useEffect(() => {
@@ -50,6 +54,69 @@ export default function Home() {
       window.speechSynthesis?.cancel();
     };
   }, [currentChatId]);
+
+  // --- Speech Recognition Logic ---
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.warn("Speech recognition not supported in this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event) => {
+      let interimTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          baseMessageRef.current += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+      // Combine existing text + finalized speech + temporary speech
+      setMessage(baseMessageRef.current + interimTranscript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error", event.error);
+      stopListening();
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+  }, []);
+
+  const startListening = () => {
+    if (!recognitionRef.current) return;
+    baseMessageRef.current = message ? message + " " : ""; // save what was already typed
+    setIsListening(true);
+    recognitionRef.current.start();
+  };
+
+  const stopListening = () => {
+    if (!recognitionRef.current) return;
+    recognitionRef.current.stop();
+    setIsListening(false);
+  };
+
+  const handleCancelSpeech = () => {
+    if (!recognitionRef.current) return;
+    recognitionRef.current.stop();
+    setIsListening(false);
+    setMessage(baseMessageRef.current.trim()); // Revert back to text before mic started
+  };
+
+  const handleAcceptSpeech = () => {
+    stopListening();
+    // Keeps the text inside the input box so user can press send normally or make quick edits
+  };
 
   const handleNewChat = () => {
     dispatch(setCurrentChatId(null));
@@ -210,7 +277,7 @@ export default function Home() {
 
   return (
     <div className="flex h-screen">
-
+      {/* Sidebar */}
       <div className={`bg-slate-900 text-white transition-all ${sidebarOpen ? "w-72" : "w-20"} flex flex-col`}>
         <div className="p-4 flex justify-between items-center">
           {sidebarOpen && <span>AstraMind</span>}
@@ -248,8 +315,7 @@ export default function Home() {
                 key={chat.id}
                 type="button"
                 onClick={() => handleSelectChat(chat.id)}
-                className={`w-full text-left p-3 rounded-lg ${currentChatId === chat.id ? "bg-slate-800" : "hover:bg-slate-800"
-                  }`}
+                className={`w-full text-left p-3 rounded-lg ${currentChatId === chat.id ? "bg-slate-800" : "hover:bg-slate-800"}`}
               >
                 {sidebarOpen ? chat.title || chat.id : <i className="fa-solid fa-message"></i>}
               </button>
@@ -258,8 +324,9 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Main Panel */}
       <div className="flex-1 flex flex-col bg-slate-100">
-
+        {/* Top Header */}
         <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="font-semibold text-lg text-slate-800">
@@ -283,6 +350,7 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Message Thread */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {activeChat?.messages?.map((msg, index) => (
             <div
@@ -298,9 +366,7 @@ export default function Home() {
 
               <div
                 className={`max-w-2xl px-5 py-3 rounded-2xl ${
-                  msg.role === "user"
-                    ? "bg-blue-600 text-white"
-                    : "bg-white border shadow-sm text-slate-800"
+                  msg.role === "user" ? "bg-blue-600 text-white" : "bg-white border shadow-sm text-slate-800"
                 }`}
               >
                 {(!msg.messageType || msg.messageType === "text") && (
@@ -315,24 +381,19 @@ export default function Home() {
                       className="max-w-xs sm:max-w-md rounded-xl shadow-sm border border-slate-200"
                       loading="lazy"
                     />
-                    <p className="text-xs text-slate-400 italic mt-1">
-                      {msg.content}
-                    </p>
+                    <p className="text-xs text-slate-400 italic mt-1">{msg.content}</p>
                   </div>
                 )}
               </div>
 
+              {/* Message Controls */}
               <div className="mt-1 flex items-center gap-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 {(!msg.messageType || msg.messageType === "text") && (
                   <button
                     type="button"
                     onClick={() => handleToggleSpeech(msg.content, index)}
                     className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-md transition-colors bg-transparent border-none cursor-pointer"
-                    title={
-                      speechState.index === index && speechState.status === "playing"
-                        ? "Pause"
-                        : "Read aloud"
-                    }
+                    title={speechState.index === index && speechState.status === "playing" ? "Pause" : "Read aloud"}
                   >
                     {speechState.index === index && speechState.status === "playing" ? (
                       <i className="fa-solid fa-square text-xs text-slate-400"></i>
@@ -357,7 +418,6 @@ export default function Home() {
                   )}
                 </button>
               </div>
-
             </div>
           ))}
 
@@ -372,6 +432,7 @@ export default function Home() {
           )}
         </div>
 
+        {/* Question Box / Input Form */}
         <div className="bg-white border-t p-4">
           <form onSubmit={handleSubmit} className="max-w-5xl mx-auto">
             <div className="flex items-center bg-slate-100 rounded-2xl p-2 gap-2">
@@ -379,14 +440,47 @@ export default function Home() {
                 type="text"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                className="flex-1 bg-transparent outline-none px-3 py-3 text-slate-800"
-                placeholder="Ask AstraMind anything..."
+                className={`flex-1 bg-transparent outline-none px-3 py-3 text-slate-800 ${isListening ? "placeholder-red-500 font-medium" : ""}`}
+                placeholder={isListening ? "Listening... Speak now..." : "Ask AstraMind anything..."}
               />
+
+              {/* Dynamic Mic Buttons */}
+              {!isListening ? (
+                <button
+                  type="button"
+                  onClick={startListening}
+                  className="bg-gray-600 hover:bg-gray-700 text-white w-12 h-12 rounded-xl flex items-center justify-center transition-colors"
+                  title="Record audio"
+                >
+                  <i className="fa-solid fa-microphone"></i>
+                </button>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  {/* Cancel Speech Button */}
+                  <button
+                    type="button"
+                    onClick={handleCancelSpeech}
+                    className="bg-red-500 hover:bg-red-600 text-white w-10 h-10 rounded-xl flex items-center justify-center transition-colors font-bold text-sm"
+                    title="Cancel recording"
+                  >
+                    <i className="fa-solid fa-xmark"></i>
+                  </button>
+                  {/* Accept Speech Button */}
+                  <button
+                    type="button"
+                    onClick={handleAcceptSpeech}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white w-10 h-10 rounded-xl flex items-center justify-center transition-colors font-bold text-sm"
+                    title="Accept recording"
+                  >
+                    <i className="fa-solid fa-check"></i>
+                  </button>
+                </div>
+              )}
 
               <button
                 type="button"
                 onClick={handleImageClick}
-                disabled={isAiThinking}
+                disabled={isAiThinking || isListening}
                 className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl disabled:opacity-50 font-medium transition-colors"
               >
                 Image
@@ -394,7 +488,7 @@ export default function Home() {
 
               <button
                 type="submit"
-                disabled={isAiThinking}
+                disabled={isAiThinking || isListening}
                 className="bg-blue-600 hover:bg-blue-700 text-white w-12 h-12 rounded-xl flex items-center justify-center disabled:opacity-50 transition-colors"
               >
                 <i className="fa-solid fa-paper-plane"></i>
