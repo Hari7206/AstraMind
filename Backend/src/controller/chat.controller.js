@@ -117,7 +117,7 @@ export async function getMessages(req, res) {
         });
     }
 
-    const messages = await messageModel.find({ chat: chatId }).sort({ createdAt: 1 });
+    const messages = await messageModel.find({ chat: chatId });
 
     res.status(200).json({
         message: "Messages retrieved successfully",
