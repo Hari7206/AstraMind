@@ -6,7 +6,6 @@ const groq = new Groq({
 
 export async function generateGroqResponse(messages) {
   try {
-    // Convert your message format to Groq format
     const groqMessages = messages.map((msg) => ({
       role: msg.role === "user" ? "user" : "assistant",
       content: msg.content,
@@ -14,7 +13,7 @@ export async function generateGroqResponse(messages) {
 
     const chatCompletion = await groq.chat.completions.create({
       messages: groqMessages,
-      model: "llama-3.3-70b-versatile", // Updated model - currently supported
+      model: "llama-3.3-70b-versatile", 
       temperature: 0.7,
       max_tokens: 1024,
     });

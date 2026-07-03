@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import ReactMarkdown from 'react-markdown';
 import {
   setCurrentChatId,
   updateStreamingMessage,
@@ -20,34 +21,53 @@ export default function Home() {
   const currentChatId = useSelector((state) => state.chat.currentChatId);
   const isAiThinking = useSelector((state) => state.chat.isAiThinking);
   const selectedModel = useSelector((state) => state.chat.selectedModel || "mistral");
+  const user = useSelector((state) => state.auth.user);
 
   const {
     handleSendMessage,
     handleGetChats,
     handleGetMessages,
-    handleGenerateImage: generateImageFromApi
+    handleGenerateImage: generateImageFromApi,
+    handleUploadDocument,
+    handleChatWithDocument,
+    handleGetDocuments
   } = useChats();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [message, setMessage] = useState("");
   const [copiedMessageIndex, setCopiedMessageIndex] = useState(null);
   const [speechState, setSpeechState] = useState({ index: null, status: "stopped" });
-
-  // --- Speech Recognition States ---
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef(null);
-  const baseMessageRef = useRef(""); // Keeps track of text before turning on mic
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
 
+  const recognitionRef = useRef(null);
+  const baseMessageRef = useRef("");
   const chatEndRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+
   const activeChat = currentChatId ? chats[currentChatId] : null;
 
   useEffect(() => {
     handleGetChats();
   }, [handleGetChats]);
 
+  const handleScroll = () => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+      setIsUserScrolling(!isNearBottom);
+    }
+  };
+
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [activeChat?.messages]);
+    const container = messagesContainerRef.current;
+    if (container && !isUserScrolling) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [activeChat?.messages, isUserScrolling]);
 
   useEffect(() => {
     return () => {
@@ -55,13 +75,9 @@ export default function Home() {
     };
   }, [currentChatId]);
 
-  // --- Speech Recognition Logic ---
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      console.warn("Speech recognition not supported in this browser.");
-      return;
-    }
+    if (!SpeechRecognition) return;
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
@@ -77,25 +93,18 @@ export default function Home() {
           interimTranscript += event.results[i][0].transcript;
         }
       }
-      // Combine existing text + finalized speech + temporary speech
       setMessage(baseMessageRef.current + interimTranscript);
     };
 
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error", event.error);
-      stopListening();
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
+    recognition.onerror = () => stopListening();
+    recognition.onend = () => setIsListening(false);
 
     recognitionRef.current = recognition;
   }, []);
 
   const startListening = () => {
     if (!recognitionRef.current) return;
-    baseMessageRef.current = message ? message + " " : ""; // save what was already typed
+    baseMessageRef.current = message ? message + " " : "";
     setIsListening(true);
     recognitionRef.current.start();
   };
@@ -110,13 +119,10 @@ export default function Home() {
     if (!recognitionRef.current) return;
     recognitionRef.current.stop();
     setIsListening(false);
-    setMessage(baseMessageRef.current.trim()); // Revert back to text before mic started
+    setMessage(baseMessageRef.current.trim());
   };
 
-  const handleAcceptSpeech = () => {
-    stopListening();
-    // Keeps the text inside the input box so user can press send normally or make quick edits
-  };
+  const handleAcceptSpeech = () => stopListening();
 
   const handleNewChat = () => {
     dispatch(setCurrentChatId(null));
@@ -168,16 +174,66 @@ export default function Home() {
     );
     if (femaleVoice) utterance.voice = femaleVoice;
 
-    utterance.onend = () => {
-      setSpeechState({ index: null, status: "stopped" });
-    };
-
-    utterance.onerror = () => {
-      setSpeechState({ index: null, status: "stopped" });
-    };
+    utterance.onend = () => setSpeechState({ index: null, status: "stopped" });
+    utterance.onerror = () => setSpeechState({ index: null, status: "stopped" });
 
     setSpeechState({ index, status: "playing" });
     synth.speak(utterance);
+  };
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const allowedTypes = ["pdf", "docx", "txt"];
+    const fileExtension = file.name.split(".").pop().toLowerCase();
+    if (!allowedTypes.includes(fileExtension)) {
+      alert("Please upload PDF, DOCX, or TXT files only");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert("File size must be less than 10MB");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 300);
+
+      const data = await handleUploadDocument(file, currentChatId);
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (data.success) {
+        setTimeout(() => {
+          setIsUploading(false);
+          setUploadProgress(0);
+        }, 500);
+      } else {
+        throw new Error(data.message || "Upload failed");
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert(`Upload failed: ${error.message}`);
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleImageClick = async () => {
@@ -241,18 +297,30 @@ export default function Home() {
     const trimmedMessage = message.trim();
     if (!trimmedMessage) return;
 
-    if (currentChatId) {
-      dispatch(
-        addNewMessage({
+    const currentChat = chats[currentChatId];
+    const hasDocument = currentChat?.documentId;
+
+    if (hasDocument && currentChatId) {
+      dispatch(addNewMessage({
+        chatId: currentChatId,
+        content: trimmedMessage,
+        role: "user"
+      }));
+
+      setMessage("");
+      await handleChatWithDocument(hasDocument, trimmedMessage, currentChatId);
+    } else {
+      if (currentChatId) {
+        dispatch(addNewMessage({
           chatId: currentChatId,
           content: trimmedMessage,
           role: "user"
-        })
-      );
-    }
+        }));
+      }
 
-    setMessage("");
-    await handleSendMessage(trimmedMessage, currentChatId, selectedModel);
+      setMessage("");
+      await handleSendMessage(trimmedMessage, currentChatId, selectedModel);
+    }
   };
 
   useEffect(() => {
@@ -275,41 +343,36 @@ export default function Home() {
     (a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated)
   );
 
-  return (
-    <div className="relative flex h-screen bg-[#07080c] text-slate-100 overflow-hidden">
-      {/* Ambient background glow */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 -left-32 w-[32rem] h-[32rem] rounded-full bg-orange-600/20 blur-[120px]" />
-        <div className="absolute top-1/3 -right-40 w-[36rem] h-[36rem] rounded-full bg-blue-600/20 blur-[140px]" />
-        <div className="absolute bottom-0 left-1/3 w-[28rem] h-[28rem] rounded-full bg-fuchsia-600/10 blur-[130px]" />
-      </div>
+  const getInitials = (name) => {
+    if (!name) return "?";
+    return name.charAt(0).toUpperCase();
+  };
 
-      {/* Sidebar */}
+  return (
+    <div className="flex h-screen bg-[#0a0b10] text-slate-100 overflow-hidden">
       <div
-        className={`relative z-10 ${
-          sidebarOpen ? "w-72" : "w-20"
-        } flex flex-col bg-white/[0.03] backdrop-blur-2xl border-r border-white/10 transition-all duration-300`}
+        className={`${sidebarOpen ? "w-72" : "w-16"} flex flex-col bg-[#0d0e14] border-r border-white/5 transition-all duration-300 h-screen flex-shrink-0`}
       >
-        <div className="p-4 flex justify-between items-center border-b border-white/5">
+        <div className="p-4 flex justify-between items-center flex-shrink-0">
           {sidebarOpen && (
-            <span className="font-semibold tracking-wide bg-gradient-to-r from-orange-400 via-fuchsia-400 to-blue-400 bg-clip-text text-transparent">
+            <span className="font-semibold text-lg tracking-wide bg-gradient-to-r from-orange-400 via-fuchsia-400 to-blue-400 bg-clip-text text-transparent">
               AstraMind
             </span>
           )}
           <button
             type="button"
             onClick={() => setSidebarOpen((p) => !p)}
-            className="text-slate-400 hover:text-white transition-colors bg-transparent border-none cursor-pointer"
+            className="text-slate-500 hover:text-white transition-colors bg-transparent border-none cursor-pointer"
           >
-            <i className="fa-solid fa-bars"></i>
+            <i className="fa-solid fa-bars text-lg"></i>
           </button>
         </div>
 
-        <div className="p-4 flex flex-col gap-2">
+        <div className="px-3 pb-3 flex flex-col gap-2 flex-shrink-0">
           <button
             type="button"
             onClick={handleNewChat}
-            className="w-full py-2.5 rounded-xl font-medium text-white bg-gradient-to-r from-orange-500 via-fuchsia-500 to-blue-500 shadow-lg shadow-fuchsia-500/20 hover:shadow-fuchsia-500/40 hover:brightness-110 transition-all"
+            className={`w-full py-2.5 rounded-xl font-medium text-white bg-gradient-to-r from-orange-500 via-fuchsia-500 to-blue-500 shadow-lg shadow-fuchsia-500/20 hover:shadow-fuchsia-500/30 transition-all ${!sidebarOpen && "text-center"}`}
           >
             {sidebarOpen ? "New Chat" : "+"}
           </button>
@@ -317,20 +380,20 @@ export default function Home() {
           <button
             type="button"
             onClick={() => navigate("/gallery")}
-            className="w-full py-2.5 rounded-xl font-medium text-slate-200 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-colors"
+            className={`w-full py-2.5 rounded-xl font-medium text-slate-300 bg-white/5 hover:bg-white/10 transition-all ${!sidebarOpen && "text-center"}`}
           >
             {sidebarOpen ? "Gallery" : "🖼"}
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 pb-4">
+        <div className="flex-1 overflow-y-auto px-2 pb-2 scrollbar-hide">
           {sidebarOpen && (
-            <h2 className="text-slate-500 text-xs font-semibold uppercase tracking-wider px-2 mb-3 mt-2">
+            <h2 className="text-slate-500 text-xs font-semibold uppercase tracking-wider px-2 mb-2">
               Chats
             </h2>
           )}
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             {chatList.map((chat) => {
               const isActive = currentChatId === chat.id;
               return (
@@ -338,14 +401,10 @@ export default function Home() {
                   key={chat.id}
                   type="button"
                   onClick={() => handleSelectChat(chat.id)}
-                  className={`relative w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                    isActive
-                      ? "bg-white/10 text-white"
-                      : "text-slate-400 hover:text-slate-100 hover:bg-white/5"
-                  }`}
+                  className={`relative w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all ${isActive ? "bg-white/10 text-white" : "text-slate-400 hover:text-slate-100 hover:bg-white/5"} ${!sidebarOpen && "flex justify-center"}`}
                 >
                   {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-full bg-gradient-to-b from-orange-400 via-fuchsia-400 to-blue-400" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-gradient-to-b from-orange-400 via-fuchsia-400 to-blue-400" />
                   )}
                   <span className={isActive ? "pl-2" : "pl-2"}>
                     {sidebarOpen ? (chat.title || chat.id) : <i className="fa-solid fa-message"></i>}
@@ -355,171 +414,252 @@ export default function Home() {
             })}
           </div>
         </div>
+
+        <div className="border-t border-white/5 p-3 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-orange-500 via-fuchsia-500 to-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+              {getInitials(user?.username || user?.email || "U")}
+            </div>
+            {sidebarOpen && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-200 truncate">
+                  {user?.username || user?.email || "User"}
+                </p>
+                <p className="text-xs text-slate-500 truncate">
+                  {user?.email || ""}
+                </p>
+              </div>
+            )}
+            {sidebarOpen && (
+              <button
+                type="button"
+                onClick={() => {
+                  document.cookie = "token=; path=/; max-age=0";
+                  navigate("/login");
+                }}
+                className="text-slate-400 hover:text-white transition-colors"
+                title="Logout"
+              >
+                <i className="fa-solid fa-sign-out-alt"></i>
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Main Panel */}
-      <div className="relative z-10 flex-1 flex flex-col min-w-0">
-        {/* Top Header */}
-        <div className="bg-white/[0.02] backdrop-blur-xl border-b border-white/10 px-6 py-4 flex items-center justify-between">
-          <div>
+      <div className="flex-1 flex flex-col min-w-0 h-screen">
+        <div className="px-6 py-3 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3">
             <h2 className="font-semibold text-lg text-slate-100">
               {activeChat?.title || "New Chat"}
             </h2>
+            {activeChat?.documentId && (
+              <span className="text-xs bg-fuchsia-500/20 text-fuchsia-400 px-2.5 py-1 rounded-full border border-fuchsia-500/20">
+                📄 Document
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-[11px] font-semibold bg-white/5 text-slate-300 border border-white/10 px-2.5 py-1 rounded-md uppercase tracking-wider">
-              Selected: {selectedModel}
+            <span className="text-[11px] font-medium text-slate-400 bg-white/5 px-3 py-1.5 rounded-lg">
+              {selectedModel}
             </span>
 
             <select
               value={selectedModel}
               onChange={(e) => dispatch(setModel(e.target.value))}
-              className="bg-white/5 border border-white/10 text-slate-100 text-sm px-3 py-1.5 rounded-lg outline-none focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500/40 font-medium transition-shadow"
+              className="bg-white/5 text-slate-200 text-sm px-3 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-fuchsia-500/50 font-medium transition-all"
             >
-              <option className="bg-[#0d0f16]" value="mistral">Mistral</option>
-              <option className="bg-[#0d0f16]" value="groq">Groq (LLaMA 3)</option>
+              <option className="bg-[#0d0e14]" value="mistral">Mistral</option>
+              <option className="bg-[#0d0e14]" value="groq">Groq</option>
             </select>
           </div>
         </div>
 
-        {/* Message Thread */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {activeChat?.messages?.map((msg, index) => (
-            <div
-              key={index}
-              className={`flex flex-col group ${msg.role === "user" ? "items-end" : "items-start"}`}
-            >
-              {msg.role === "ai" && (
-                <div className="text-xs font-medium text-slate-500 mb-1 ml-2 flex items-center gap-1.5">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_2px] shadow-emerald-400/50"></span>
-                  AI • <span className="capitalize font-semibold text-slate-300">{msg.model || "mistral"}</span>
-                </div>
-              )}
-
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto px-4 scrollbar-hide"
+        >
+          <div className="max-w-3xl mx-auto py-4 space-y-4">
+            {activeChat?.messages?.map((msg, index) => (
               <div
-                className={`max-w-2xl px-5 py-3 rounded-2xl ${
-                  msg.role === "user"
-                    ? "bg-gradient-to-br from-orange-500/90 via-fuchsia-500/90 to-blue-500/90 text-white shadow-lg shadow-fuchsia-500/10"
-                    : "bg-white/[0.04] border border-white/10 backdrop-blur-md text-slate-100"
-                }`}
+                key={index}
+                className={`flex flex-col group ${msg.role === "user" ? "items-end" : "items-start"}`}
               >
-                {(!msg.messageType || msg.messageType === "text") && (
-                  <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                )}
-
-                {msg.messageType === "image" && (
-                  <div className="flex flex-col gap-2 p-1">
-                    <img
-                      src={msg.fileUrl}
-                      alt={msg.content}
-                      className="max-w-xs sm:max-w-md rounded-xl shadow-lg shadow-black/40 border border-white/10"
-                      loading="lazy"
-                    />
-                    <p className="text-xs text-slate-400 italic mt-1">{msg.content}</p>
+                {msg.role === "ai" && (
+                  <div className="text-xs font-medium text-slate-500 mb-1 ml-1 flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_2px] shadow-emerald-400/30"></span>
+                    AI • <span className="capitalize text-slate-400">{msg.model || "mistral"}</span>
                   </div>
                 )}
-              </div>
 
-              {/* Message Controls */}
-              <div className="mt-1 flex items-center gap-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                {(!msg.messageType || msg.messageType === "text") && (
+                <div
+                  className={`max-w-[80%] px-5 py-3 rounded-2xl ${msg.role === "user" ? "bg-gradient-to-br from-orange-500/90 via-fuchsia-500/90 to-blue-500/90 text-white shadow-xl shadow-fuchsia-500/10" : "bg-white/[0.04] backdrop-blur-sm text-slate-100"}`}
+                >
+                  {(!msg.messageType || msg.messageType === "text") && (
+                    <div className="prose prose-invert max-w-none prose-sm">
+                      <ReactMarkdown>
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+
+                  {msg.messageType === "image" && (
+                    <div className="flex flex-col gap-2">
+                      <img
+                        src={msg.fileUrl}
+                        alt={msg.content}
+                        className="max-w-xs sm:max-w-md rounded-xl shadow-lg shadow-black/40"
+                        loading="lazy"
+                      />
+                      <p className="text-xs text-slate-400">{msg.content}</p>
+                    </div>
+                  )}
+
+                  {msg.messageType === "document" && (
+                    <div className="flex items-center gap-3 p-2 bg-white/5 rounded-lg">
+                      <i className="fa-solid fa-file-pdf text-2xl text-fuchsia-400"></i>
+                      <div>
+                        <p className="text-sm font-medium">{msg.content}</p>
+                        {msg.fileUrl && (
+                          <a
+                            href={msg.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-fuchsia-400 hover:underline"
+                          >
+                            View Document
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-1 flex items-center gap-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {(!msg.messageType || msg.messageType === "text") && (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSpeech(msg.content, index)}
+                      className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-white/10 rounded-md transition-colors bg-transparent border-none cursor-pointer"
+                    >
+                      {speechState.index === index && speechState.status === "playing" ? (
+                        <i className="fa-solid fa-square text-xs text-slate-400"></i>
+                      ) : speechState.index === index && speechState.status === "paused" ? (
+                        <i className="ri-volume-up-line text-base text-fuchsia-400 animate-pulse"></i>
+                      ) : (
+                        <i className="ri-volume-up-line text-base"></i>
+                      )}
+                    </button>
+                  )}
+
                   <button
                     type="button"
-                    onClick={() => handleToggleSpeech(msg.content, index)}
+                    onClick={() => handleCopyText(msg.content, index)}
                     className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-white/10 rounded-md transition-colors bg-transparent border-none cursor-pointer"
-                    title={speechState.index === index && speechState.status === "playing" ? "Pause" : "Read aloud"}
                   >
-                    {speechState.index === index && speechState.status === "playing" ? (
-                      <i className="fa-solid fa-square text-xs text-slate-400"></i>
-                    ) : speechState.index === index && speechState.status === "paused" ? (
-                      <i className="ri-volume-up-line text-base text-fuchsia-400 animate-pulse"></i>
+                    {copiedMessageIndex === index ? (
+                      <i className="fa-solid fa-check text-emerald-400 text-sm"></i>
                     ) : (
-                      <i className="ri-volume-up-line text-base"></i>
+                      <i className="fa-regular fa-copy text-sm"></i>
                     )}
                   </button>
-                )}
+                </div>
+              </div>
+            ))}
+
+            <div ref={chatEndRef} />
+
+            {isUploading && (
+              <div className="flex justify-start">
+                <div className="bg-white/[0.04] backdrop-blur-sm px-4 py-3 rounded-xl text-slate-400 text-sm flex flex-col gap-2 min-w-[200px]">
+                  <div className="flex items-center gap-2">
+                    <i className="fa-solid fa-spinner fa-spin text-fuchsia-400"></i>
+                    <span>Uploading...</span>
+                  </div>
+                  <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-orange-500 via-fuchsia-500 to-blue-500 transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-slate-500">{uploadProgress}%</span>
+                </div>
+              </div>
+            )}
+
+            {isAiThinking && (
+              <div className="flex justify-start">
+                <div className="bg-white/[0.04] backdrop-blur-sm px-4 py-2 rounded-xl text-slate-400 text-sm flex items-center gap-2">
+                  <span className="flex gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400 animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400 animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400 animate-bounce"></span>
+                  </span>
+                  Thinking...
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="p-4 flex-shrink-0">
+          <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
+            <div className="relative">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500/20 via-fuchsia-500/20 to-blue-500/20 rounded-2xl blur-md" />
+
+              <div className="relative flex items-center bg-[#0d0e14] rounded-2xl p-2 gap-1 ring-1 ring-white/5">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".pdf,.docx,.txt"
+                  className="hidden"
+                />
 
                 <button
                   type="button"
-                  onClick={() => handleCopyText(msg.content, index)}
-                  className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-white/10 rounded-md transition-colors bg-transparent border-none cursor-pointer"
-                  title="Copy"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading || isAiThinking}
+                  className="text-slate-400 hover:text-slate-200 hover:bg-white/5 w-10 h-10 rounded-xl flex items-center justify-center transition-colors disabled:opacity-40 flex-shrink-0"
+                  title="Upload document"
                 >
-                  {copiedMessageIndex === index ? (
-                    <i className="fa-solid fa-check text-emerald-400 text-sm"></i>
-                  ) : (
-                    <i className="fa-regular fa-copy text-sm"></i>
-                  )}
+                  <i className="fa-solid fa-paperclip"></i>
                 </button>
-              </div>
-            </div>
-          ))}
 
-          <div ref={chatEndRef} />
-
-          {isAiThinking && (
-            <div className="flex justify-start">
-              <div className="bg-white/[0.04] border border-white/10 backdrop-blur-md px-4 py-2 rounded-xl text-slate-400 text-sm flex items-center gap-2">
-                <span className="flex gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400 animate-bounce [animation-delay:-0.3s]"></span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400 animate-bounce [animation-delay:-0.15s]"></span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400 animate-bounce"></span>
-                </span>
-                AI is generating response...
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Question Box / Input Form */}
-        <div className="border-t border-white/10 bg-white/[0.02] backdrop-blur-xl p-4">
-          <form onSubmit={handleSubmit} className="max-w-5xl mx-auto">
-            <div className="relative">
-              {/* Glow layer */}
-              <div className="absolute -inset-1.5 bg-gradient-to-r from-orange-500 via-fuchsia-500 to-blue-500 rounded-3xl blur-xl opacity-50 animate-glow" />
-
-              {/* Actual input bar */}
-              <div className="relative flex items-center bg-[#0d0f16] rounded-2xl p-2 gap-2 ring-1 ring-white/10 shadow-2xl">
                 <input
                   type="text"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  className={`flex-1 bg-transparent outline-none px-3 py-3 text-slate-100 placeholder-slate-500 ${
-                    isListening ? "placeholder-red-400 font-medium" : ""
-                  }`}
-                  placeholder={isListening ? "Listening... Speak now..." : "Ask AstraMind anything..."}
+                  className={`flex-1 bg-transparent outline-none px-2 py-3 text-slate-100 placeholder-slate-500 min-w-0 text-sm ${isListening ? "placeholder-red-400" : ""}`}
+                  placeholder={isListening ? "Listening..." : "Ask anything..."}
                 />
 
-                {/* Dynamic Mic Buttons */}
                 {!isListening ? (
                   <button
                     type="button"
                     onClick={startListening}
-                    className="bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 w-12 h-12 rounded-xl flex items-center justify-center transition-colors"
-                    title="Record audio"
+                    className="text-slate-400 hover:text-slate-200 hover:bg-white/5 w-10 h-10 rounded-xl flex items-center justify-center transition-colors flex-shrink-0"
+                    title="Voice input"
                   >
                     <i className="fa-solid fa-microphone"></i>
                   </button>
                 ) : (
-                  <div className="flex items-center gap-1.5">
-                    {/* Cancel Speech Button */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       type="button"
                       onClick={handleCancelSpeech}
-                      className="bg-red-500 hover:bg-red-600 text-white w-10 h-10 rounded-xl flex items-center justify-center transition-colors font-bold text-sm"
-                      title="Cancel recording"
+                      className="bg-red-500/80 hover:bg-red-500 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
                     >
-                      <i className="fa-solid fa-xmark"></i>
+                      <i className="fa-solid fa-xmark text-sm"></i>
                     </button>
-                    {/* Accept Speech Button */}
                     <button
                       type="button"
                       onClick={handleAcceptSpeech}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white w-10 h-10 rounded-xl flex items-center justify-center transition-colors font-bold text-sm"
-                      title="Accept recording"
+                      className="bg-emerald-500/80 hover:bg-emerald-500 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
                     >
-                      <i className="fa-solid fa-check"></i>
+                      <i className="fa-solid fa-check text-sm"></i>
                     </button>
                   </div>
                 )}
@@ -527,18 +667,18 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={handleImageClick}
-                  disabled={isAiThinking || isListening}
-                  className="bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-5 py-3 rounded-xl disabled:opacity-40 font-medium transition-colors"
+                  disabled={isAiThinking || isListening || isUploading}
+                  className="text-slate-400 hover:text-white px-4 py-2 rounded-xl disabled:opacity-40 transition-colors flex-shrink-0 text-sm font-medium"
                 >
                   Image
                 </button>
 
                 <button
                   type="submit"
-                  disabled={isAiThinking || isListening}
-                  className="bg-gradient-to-r from-orange-500 via-fuchsia-500 to-blue-500 hover:brightness-110 text-white w-12 h-12 rounded-xl flex items-center justify-center disabled:opacity-40 transition-all"
+                  disabled={isAiThinking || isListening || isUploading}
+                  className="bg-gradient-to-r from-orange-500 via-fuchsia-500 to-blue-500 hover:brightness-110 text-white w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-40 transition-all flex-shrink-0"
                 >
-                  <i className="fa-solid fa-paper-plane"></i>
+                  <i className="fa-solid fa-arrow-up"></i>
                 </button>
               </div>
             </div>
@@ -547,12 +687,12 @@ export default function Home() {
       </div>
 
       <style>{`
-        @keyframes glowPulse {
-          0%, 100% { opacity: 0.4; transform: scale(1); }
-          50% { opacity: 0.75; transform: scale(1.015); }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
         }
-        .animate-glow {
-          animation: glowPulse 3.2s ease-in-out infinite;
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
     </div>

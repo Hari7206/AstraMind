@@ -5,7 +5,11 @@ import {
     getChats,
     getMessages,
     deleteChat,
-    generateImageApi
+    generateImageApi,
+    uploadDocument,        
+    chatWithDocument,     
+    getDocuments,          
+    deleteDocument        
 } from "../service/chat.api.js";
 
 import {
@@ -15,7 +19,8 @@ import {
     setLoading,
     createNewChat,
     addNewMessage,
-    addMessages
+    addMessages,
+    setAiThinking         
 } from "../chat.slice.js";
 
 import { useCallback } from "react";
@@ -34,7 +39,6 @@ export const useChats = () => {
     const selectedModel = useSelector(
         (state) => state.chat.selectedModel
     );
-
 
     const handleSendMessage = useCallback(async (message, chatId, modelOverride) => {
         try {
@@ -140,9 +144,6 @@ export const useChats = () => {
         }
     }, [dispatch]);
 
-
-
-
     const handleGenerateImage = useCallback(async (prompt, chatId) => {
         try {
             return await generateImageApi({
@@ -155,13 +156,127 @@ export const useChats = () => {
         }
     }, []);
 
-    // Ensure this object contains only valid references
+    // ========== NEW DOCUMENT FUNCTIONS ==========
+
+    const handleUploadDocument = useCallback(async (file, chatId) => {
+        try {
+            dispatch(setLoading(true));
+            const data = await uploadDocument(file, chatId);
+
+            if (data.success && data.chatId) {
+                if (!chatId) {
+                    dispatch(createNewChat({
+                        chatId: data.chatId,
+                        title: data.document.fileName,
+                    }));
+                    dispatch(setCurrentChatId(data.chatId));
+                }
+
+                if (data.userMessage) {
+                    dispatch(addNewMessage({
+                        chatId: data.chatId,
+                        ...formatMessage(data.userMessage),
+                    }));
+                }
+
+                if (data.aiMessage) {
+                    dispatch(addNewMessage({
+                        chatId: data.chatId,
+                        ...formatMessage(data.aiMessage),
+                    }));
+                }
+
+                const updatedChats = await getChats();
+                dispatch(setChats(updatedChats.chats || []));
+            }
+
+            return data;
+        } catch (error) {
+            dispatch(setError(error.message));
+            throw error;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    }, [dispatch]);
+
+    const handleChatWithDocument = useCallback(async (documentId, question, chatId) => {
+        try {
+            dispatch(setLoading(true));
+            dispatch(setAiThinking(true));
+
+            const data = await chatWithDocument(documentId, question, chatId);
+
+            if (data.success) {
+                if (data.userMessage) {
+                    dispatch(addNewMessage({
+                        chatId: data.userMessage.chat,
+                        ...formatMessage(data.userMessage),
+                    }));
+                }
+
+                if (data.aiMessage) {
+                    dispatch(addNewMessage({
+                        chatId: data.aiMessage.chat,
+                        ...formatMessage(data.aiMessage),
+                    }));
+                }
+
+                const chatToRefresh = chatId || data.userMessage?.chat;
+                if (chatToRefresh) {
+                    const response = await getMessages(chatToRefresh);
+                    dispatch(addMessages({
+                        chatId: chatToRefresh,
+                        messages: (response.messages || []).map(formatMessage),
+                    }));
+                }
+            }
+
+            return data;
+        } catch (error) {
+            dispatch(setError(error.message));
+            throw error;
+        } finally {
+            dispatch(setLoading(false));
+            dispatch(setAiThinking(false));
+        }
+    }, [dispatch]);
+
+    const handleGetDocuments = useCallback(async () => {
+        try {
+            dispatch(setLoading(true));
+            const data = await getDocuments();
+            return data;
+        } catch (error) {
+            dispatch(setError(error.message));
+            throw error;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    }, [dispatch]);
+
+    const handleDeleteDocument = useCallback(async (documentId) => {
+        try {
+            dispatch(setLoading(true));
+            const data = await deleteDocument(documentId);
+            return data;
+        } catch (error) {
+            dispatch(setError(error.message));
+            throw error;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    }, [dispatch]);
+
     return {
         initializeSocketConnection,
         handleSendMessage,
         handleGetChats,
         handleGetMessages,
         handleDeleteChat,
-        handleGenerateImage
+        handleGenerateImage,
+        handleUploadDocument,      
+        handleChatWithDocument,   
+        handleGetDocuments,        
+        handleDeleteDocument      
     };
 };

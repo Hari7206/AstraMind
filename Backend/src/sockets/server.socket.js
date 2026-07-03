@@ -5,7 +5,7 @@ let io;
 export const initSocket = (httpServer) => {
     io = new Server(httpServer, {
         cors: {
-            origin: "http://localhost:5173", // Adjust this to your frontend URL and port
+            origin: "http://localhost:5173", 
             credentials: true,
         },
     });
@@ -15,7 +15,6 @@ export const initSocket = (httpServer) => {
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
-  // STEP 1: join chat room
   socket.on("join-chat", (chatId) => {
     if (!chatId) return;
     socket.join(chatId);

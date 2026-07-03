@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-baseURL: "http://localhost:3000",
+  baseURL: "http://localhost:3000",
   withCredentials: true,
 });
 
@@ -40,8 +40,6 @@ export const deleteChat = async (chatId) => {
   return response.data;
 };
 
-
-
 export const generateImageApi = async ({ prompt, chatId }) => {
   const res = await api.post("/api/ai/image", {
     prompt,
@@ -49,4 +47,44 @@ export const generateImageApi = async ({ prompt, chatId }) => {
   });
 
   return res.data;
+};
+
+// Upload a document
+export const uploadDocument = async (file, chatId) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (chatId) {
+    formData.append("chatId", chatId);
+  }
+
+  const response = await api.post("/api/documents/upload", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return response.data;
+};
+
+// Chat with document
+export const chatWithDocument = async (documentId, question, chatId) => {
+  const response = await api.post("/api/documents/chat", {
+    documentId,
+    question,
+    chatId,
+  });
+
+  return response.data;
+};
+
+// Get all user documents
+export const getDocuments = async () => {
+  const response = await api.get("/api/documents/");
+  return response.data;
+};
+
+// Delete document
+export const deleteDocument = async (documentId) => {
+  const response = await api.delete(`/api/documents/${documentId}`);
+  return response.data;
 };
