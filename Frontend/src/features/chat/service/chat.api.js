@@ -49,7 +49,6 @@ export const generateImageApi = async ({ prompt, chatId }) => {
   return res.data;
 };
 
-// Upload a document
 export const uploadDocument = async (file, chatId) => {
   const formData = new FormData();
   formData.append("file", file);
@@ -66,7 +65,6 @@ export const uploadDocument = async (file, chatId) => {
   return response.data;
 };
 
-// Chat with document
 export const chatWithDocument = async (documentId, question, chatId) => {
   const response = await api.post("/api/documents/chat", {
     documentId,
@@ -77,14 +75,43 @@ export const chatWithDocument = async (documentId, question, chatId) => {
   return response.data;
 };
 
-// Get all user documents
 export const getDocuments = async () => {
   const response = await api.get("/api/documents/");
   return response.data;
 };
 
-// Delete document
 export const deleteDocument = async (documentId) => {
   const response = await api.delete(`/api/documents/${documentId}`);
+  return response.data;
+};
+
+
+export const webSearch = async (query) => {
+  const response = await api.post("/api/agent/search", { query });
+  return response.data;
+};
+
+export const generateEmail = async (data) => {
+  const response = await api.post("/api/agent/email/generate", data);
+  return response.data;
+};
+
+export const sendEmailAgent = async (data) => {
+  const response = await api.post("/api/agent/email/send", data);
+  return response.data;
+};
+
+export const summarizeYouTube = async (url) => {
+  const response = await api.post("/api/agent/youtube/summarize", { url });
+  return response.data;
+};
+
+export const saveBookmark = async (data) => {
+  const response = await api.post("/api/agent/bookmarks", data);
+  return response.data;
+};
+
+export const getBookmarks = async () => {
+  const response = await api.get("/api/agent/bookmarks");
   return response.data;
 };

@@ -30,7 +30,10 @@ export default function Home() {
     handleGenerateImage: generateImageFromApi,
     handleUploadDocument,
     handleChatWithDocument,
-    handleGetDocuments
+    handleWebSearch,
+    handleGenerateEmail,
+    handleSummarizeYouTube,
+    handleSaveBookmark
   } = useChats();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -41,14 +44,27 @@ export default function Home() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isListening, setIsListening] = useState(false);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
+  const [selectedMode, setSelectedMode] = useState(null);
 
   const recognitionRef = useRef(null);
   const baseMessageRef = useRef("");
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const plusMenuRef = useRef(null);
 
   const activeChat = currentChatId ? chats[currentChatId] : null;
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (plusMenuRef.current && !plusMenuRef.current.contains(event.target)) {
+        setIsPlusMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     handleGetChats();
@@ -127,11 +143,14 @@ export default function Home() {
   const handleNewChat = () => {
     dispatch(setCurrentChatId(null));
     setMessage("");
+    setSelectedMode(null);
+    setIsPlusMenuOpen(false);
   };
 
   const handleSelectChat = async (chatId) => {
     dispatch(setCurrentChatId(chatId));
     await handleGetMessages(chatId);
+    setIsPlusMenuOpen(false);
   };
 
   const handleCopyText = (text, index) => {
@@ -179,6 +198,66 @@ export default function Home() {
 
     setSpeechState({ index, status: "playing" });
     synth.speak(utterance);
+  };
+
+  const handleModeSelect = (mode) => {
+    setSelectedMode(mode);
+    setIsPlusMenuOpen(false);
+    if (mode === 'upload') {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleAgentAction = async (action, data) => {
+    setSelectedMode(null);
+    dispatch(setAiThinking(true));
+
+    try {
+      let result;
+      let displayMessage = "";
+
+      switch (action) {
+        case 'webSearch':
+          result = await handleWebSearch(data);
+          displayMessage = `🔍 **Web Search: ${data}**\n\n${result.summary}\n\n**Sources:**\n${result.sources.map((s, i) => `${i+1}. ${s}`).join('\n')}`;
+          break;
+        case 'generateEmail':
+          result = await handleGenerateEmail(data);
+          displayMessage = `✉️ **Generated Email**\n\n**Subject:** ${result.email.subject}\n\n${result.email.body}`;
+          break;
+        case 'youtubeSummarize':
+          result = await handleSummarizeYouTube(data);
+          displayMessage = `📺 **YouTube Summary**\n\n${result.summary}`;
+          break;
+        case 'saveBookmark':
+          result = await handleSaveBookmark(data);
+          displayMessage = `🔖 **Bookmark Saved!**\n\n**Title:** ${result.bookmark.title}\n**URL:** ${result.bookmark.url}`;
+          break;
+        default:
+          return;
+      }
+
+      if (currentChatId) {
+        dispatch(addNewMessage({
+          chatId: currentChatId,
+          content: displayMessage,
+          role: "ai",
+          messageType: "text"
+        }));
+      }
+
+    } catch (error) {
+      console.error("Agent action error:", error);
+      dispatch(addNewMessage({
+        chatId: currentChatId,
+        content: `❌ Error: ${error.message}`,
+        role: "ai",
+        messageType: "text"
+      }));
+    } finally {
+      dispatch(setAiThinking(false));
+      setMessage("");
+    }
   };
 
   const handleFileUpload = async (event) => {
@@ -231,6 +310,7 @@ export default function Home() {
       setUploadProgress(0);
     }
 
+    setSelectedMode(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -297,6 +377,22 @@ export default function Home() {
     const trimmedMessage = message.trim();
     if (!trimmedMessage) return;
 
+    // If a mode is selected, handle it
+    if (selectedMode) {
+      const modeMap = {
+        'webSearch': 'webSearch',
+        'email': 'generateEmail',
+        'youtube': 'youtubeSummarize',
+        'bookmark': 'saveBookmark'
+      };
+      
+      if (modeMap[selectedMode]) {
+        await handleAgentAction(modeMap[selectedMode], trimmedMessage);
+        return;
+      }
+    }
+
+    // Normal chat flow
     const currentChat = chats[currentChatId];
     const hasDocument = currentChat?.documentId;
 
@@ -346,6 +442,28 @@ export default function Home() {
   const getInitials = (name) => {
     if (!name) return "?";
     return name.charAt(0).toUpperCase();
+  };
+
+  const getModePlaceholder = () => {
+  const modes = {
+    'webSearch': 'Enter your search query...',
+    'email': 'Enter recipient and topic (e.g., john@email.com, project update)',
+    'youtube': 'Enter YouTube URL...',
+    'bookmark': 'Enter title and URL (e.g., Google, https://google.com)',
+    'upload': 'Select a file to upload'
+  };
+  return modes[selectedMode] || "Ask anything...";
+};
+
+  const getModeColor = () => {
+    const colors = {
+      'webSearch': 'text-blue-400 border-blue-400/30 bg-blue-400/10',
+      'email': 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10',
+      'youtube': 'text-red-400 border-red-400/30 bg-red-400/10',
+      'bookmark': 'text-purple-400 border-purple-400/30 bg-purple-400/10',
+      'upload': 'text-orange-400 border-orange-400/30 bg-orange-400/10'
+    };
+    return colors[selectedMode] || '';
   };
 
   return (
@@ -604,97 +722,179 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="p-4 flex-shrink-0">
-          <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
-            <div className="relative">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500/20 via-fuchsia-500/20 to-blue-500/20 rounded-2xl blur-md" />
+ <div className="p-4 flex-shrink-0 relative">
+  <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
+    <div className="relative">
+      <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500/20 via-fuchsia-500/20 to-blue-500/20 rounded-2xl blur-md" />
 
-              <div className="relative flex items-center bg-[#0d0e14] rounded-2xl p-2 gap-1 ring-1 ring-white/5">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept=".pdf,.docx,.txt"
-                  className="hidden"
-                />
+      <div className="relative flex flex-col bg-[#0d0e14] rounded-2xl p-2 gap-1 ring-1 ring-white/5">
+        <div className="flex items-center gap-1">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept=".pdf,.docx,.txt"
+            className="hidden"
+          />
 
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading || isAiThinking}
-                  className="text-slate-400 hover:text-slate-200 hover:bg-white/5 w-10 h-10 rounded-xl flex items-center justify-center transition-colors disabled:opacity-40 flex-shrink-0"
-                  title="Upload document"
-                >
-                  <i className="fa-solid fa-paperclip"></i>
-                </button>
+          <div ref={plusMenuRef} className="relative flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsPlusMenuOpen(!isPlusMenuOpen)}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all flex-shrink-0 ${
+                isPlusMenuOpen || selectedMode
+                  ? 'bg-white/10 text-white' 
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <i className={`fa-solid ${isPlusMenuOpen || selectedMode ? 'fa-xmark' : 'fa-plus'} text-lg`}></i>
+            </button>
 
-                <input
-                  type="text"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  className={`flex-1 bg-transparent outline-none px-2 py-3 text-slate-100 placeholder-slate-500 min-w-0 text-sm ${isListening ? "placeholder-red-400" : ""}`}
-                  placeholder={isListening ? "Listening..." : "Ask anything..."}
-                />
-
-                {!isListening ? (
+            {isPlusMenuOpen && (
+              <div className="absolute bottom-full mb-2 left-0 w-56 bg-[#1a1b24] rounded-xl shadow-2xl border border-white/10 overflow-hidden z-50">
+                <div className="py-2">
                   <button
                     type="button"
-                    onClick={startListening}
-                    className="text-slate-400 hover:text-slate-200 hover:bg-white/5 w-10 h-10 rounded-xl flex items-center justify-center transition-colors flex-shrink-0"
-                    title="Voice input"
+                    onClick={() => { handleModeSelect('webSearch'); setIsPlusMenuOpen(false); }}
+                    className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
                   >
-                    <i className="fa-solid fa-microphone"></i>
+                    <i className="fa-solid fa-earth-africa text-white/60 w-5 text-center"></i>
+                    <span className="text-sm text-slate-200">Web Search</span>
                   </button>
-                ) : (
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      type="button"
-                      onClick={handleCancelSpeech}
-                      className="bg-red-500/80 hover:bg-red-500 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                    >
-                      <i className="fa-solid fa-xmark text-sm"></i>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleAcceptSpeech}
-                      className="bg-emerald-500/80 hover:bg-emerald-500 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                    >
-                      <i className="fa-solid fa-check text-sm"></i>
-                    </button>
-                  </div>
-                )}
 
+                  <button
+                    type="button"
+                    onClick={() => { handleModeSelect('upload'); setIsPlusMenuOpen(false); }}
+                    className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
+                  >
+                    <i className="fa-solid fa-upload text-white/60 w-5 text-center"></i>
+                    <span className="text-sm text-slate-200">Upload Document</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { handleModeSelect('email'); setIsPlusMenuOpen(false); }}
+                    className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
+                  >
+                    <i className="fa-regular fa-envelope text-white/60 w-5 text-center"></i>
+                    <span className="text-sm text-slate-200">Generate Email</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { handleModeSelect('youtube'); setIsPlusMenuOpen(false); }}
+                    className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
+                  >
+                    <i className="fa-brands fa-youtube text-white/60 w-5 text-center"></i>
+                    <span className="text-sm text-slate-200">YouTube Summarizer</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { handleModeSelect('bookmark'); setIsPlusMenuOpen(false); }}
+                    className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
+                  >
+                    <i className="fa-regular fa-bookmark text-white/60 w-5 text-center"></i>
+                    <span className="text-sm text-slate-200">Save Bookmark</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 relative flex items-center">
+            {selectedMode && (
+              <div className="absolute left-3 flex items-center gap-2 z-10">
+                <span className="text-sm font-medium text-white/80">
+                  {selectedMode === 'webSearch' && 'Web Search'}
+                  {selectedMode === 'upload' && 'Upload'}
+                  {selectedMode === 'email' && 'Email'}
+                  {selectedMode === 'youtube' && 'YouTube'}
+                  {selectedMode === 'bookmark' && 'Bookmark'}
+                </span>
                 <button
                   type="button"
-                  onClick={handleImageClick}
-                  disabled={isAiThinking || isListening || isUploading}
-                  className="text-slate-400 hover:text-white px-4 py-2 rounded-xl disabled:opacity-40 transition-colors flex-shrink-0 text-sm font-medium"
+                  onClick={() => {
+                    setSelectedMode(null);
+                    setMessage("");
+                  }}
+                  className="text-white/40 hover:text-white/80 transition-colors"
                 >
-                  Image
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={isAiThinking || isListening || isUploading}
-                  className="bg-gradient-to-r from-orange-500 via-fuchsia-500 to-blue-500 hover:brightness-110 text-white w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-40 transition-all flex-shrink-0"
-                >
-                  <i className="fa-solid fa-arrow-up"></i>
+                  <i className="fa-solid fa-xmark text-xs"></i>
                 </button>
               </div>
+            )}
+            <input
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className={`w-full bg-transparent outline-none py-3 text-slate-100 placeholder-slate-500 text-sm ${
+                selectedMode ? 'pl-[130px]' : 'pl-3'
+              } ${isListening ? "placeholder-red-400" : ""}`}
+              placeholder={selectedMode ? `Enter your ${selectedMode === 'webSearch' ? 'search query' : selectedMode === 'email' ? 'email details' : selectedMode === 'youtube' ? 'YouTube URL' : selectedMode === 'bookmark' ? 'bookmark' : 'details'}...` : "Ask anything..."}
+            />
+          </div>
+
+          {!isListening ? (
+            <button
+              type="button"
+              onClick={startListening}
+              className="text-slate-400 hover:text-slate-200 hover:bg-white/5 w-10 h-10 rounded-xl flex items-center justify-center transition-colors flex-shrink-0"
+              title="Voice input"
+            >
+              <i className="fa-solid fa-microphone"></i>
+            </button>
+          ) : (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleCancelSpeech}
+                className="bg-red-500/80 hover:bg-red-500 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+              >
+                <i className="fa-solid fa-xmark text-sm"></i>
+              </button>
+              <button
+                type="button"
+                onClick={handleAcceptSpeech}
+                className="bg-emerald-500/80 hover:bg-emerald-500 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+              >
+                <i className="fa-solid fa-check text-sm"></i>
+              </button>
             </div>
-          </form>
+          )}
+
+          <button
+            type="button"
+            onClick={handleImageClick}
+            disabled={isAiThinking || isListening || isUploading}
+            className="text-slate-400 hover:text-white px-4 py-2 rounded-xl disabled:opacity-40 transition-colors flex-shrink-0 text-sm font-medium"
+          >
+            Image
+          </button>
+
+          <button
+            type="submit"
+            disabled={isAiThinking || isListening || isUploading}
+            className="bg-gradient-to-r from-orange-500 via-fuchsia-500 to-blue-500 hover:brightness-110 text-white w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-40 transition-all flex-shrink-0"
+          >
+            <i className="fa-solid fa-arrow-up"></i>
+          </button>
         </div>
       </div>
+    </div>
+  </form>
+</div>
+      </div>
 
-      <style>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
+  <style>{`
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+`}</style>
     </div>
   );
 }

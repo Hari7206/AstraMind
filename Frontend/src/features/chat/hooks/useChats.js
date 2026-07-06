@@ -6,10 +6,16 @@ import {
     getMessages,
     deleteChat,
     generateImageApi,
-    uploadDocument,        
-    chatWithDocument,     
-    getDocuments,          
-    deleteDocument        
+    uploadDocument,
+    chatWithDocument,
+    getDocuments,
+    deleteDocument,
+    webSearch,           
+    generateEmail,       
+    sendEmailAgent,      
+    summarizeYouTube,    
+    saveBookmark,        
+    getBookmarks         
 } from "../service/chat.api.js";
 
 import {
@@ -20,7 +26,7 @@ import {
     createNewChat,
     addNewMessage,
     addMessages,
-    setAiThinking         
+    setAiThinking
 } from "../chat.slice.js";
 
 import { useCallback } from "react";
@@ -156,8 +162,6 @@ export const useChats = () => {
         }
     }, []);
 
-    // ========== NEW DOCUMENT FUNCTIONS ==========
-
     const handleUploadDocument = useCallback(async (file, chatId) => {
         try {
             dispatch(setLoading(true));
@@ -267,6 +271,85 @@ export const useChats = () => {
         }
     }, [dispatch]);
 
+
+    const handleWebSearch = useCallback(async (query) => {
+        try {
+            dispatch(setLoading(true));
+            const data = await webSearch(query);
+            return data;
+        } catch (error) {
+            dispatch(setError(error.message));
+            throw error;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    }, [dispatch]);
+
+    const handleGenerateEmail = useCallback(async (data) => {
+        try {
+            dispatch(setLoading(true));
+            const result = await generateEmail(data);
+            return result;
+        } catch (error) {
+            dispatch(setError(error.message));
+            throw error;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    }, [dispatch]);
+
+    const handleSendEmail = useCallback(async (data) => {
+        try {
+            dispatch(setLoading(true));
+            const result = await sendEmailAgent(data);
+            return result;
+        } catch (error) {
+            dispatch(setError(error.message));
+            throw error;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    }, [dispatch]);
+
+    const handleSummarizeYouTube = useCallback(async (url) => {
+        try {
+            dispatch(setLoading(true));
+            const data = await summarizeYouTube(url);
+            return data;
+        } catch (error) {
+            dispatch(setError(error.message));
+            throw error;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    }, [dispatch]);
+
+    const handleSaveBookmark = useCallback(async (data) => {
+        try {
+            dispatch(setLoading(true));
+            const result = await saveBookmark(data);
+            return result;
+        } catch (error) {
+            dispatch(setError(error.message));
+            throw error;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    }, [dispatch]);
+
+    const handleGetBookmarks = useCallback(async () => {
+        try {
+            dispatch(setLoading(true));
+            const data = await getBookmarks();
+            return data;
+        } catch (error) {
+            dispatch(setError(error.message));
+            throw error;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    }, [dispatch]);
+
     return {
         initializeSocketConnection,
         handleSendMessage,
@@ -274,9 +357,15 @@ export const useChats = () => {
         handleGetMessages,
         handleDeleteChat,
         handleGenerateImage,
-        handleUploadDocument,      
-        handleChatWithDocument,   
-        handleGetDocuments,        
-        handleDeleteDocument      
+        handleUploadDocument,
+        handleChatWithDocument,
+        handleGetDocuments,
+        handleDeleteDocument,
+        handleWebSearch,
+        handleGenerateEmail,
+        handleSendEmail,
+        handleSummarizeYouTube,
+        handleSaveBookmark,
+        handleGetBookmarks
     };
 };
