@@ -4,12 +4,12 @@ import authRouter from "./routes/auth.routes.js";
 import chatRouter from "./routes/chat.routes.js";
 import imageRouter from "./routes/image.routes.js";
 import documentRouter from "./routes/document.routes.js"; 
+import agentRouter from "./routes/agent.routes.js";
+import paymentRouter from "./routes/payment.routes.js";  // ← NEW
 import cors from "cors";
 import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from 'url';
-import agentRouter from "./routes/agent.routes.js";
-
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,5 +32,6 @@ app.use("/api/chats", chatRouter);
 app.use("/api/ai", imageRouter);
 app.use("/api/documents", documentRouter); 
 app.use("/api/agent", agentRouter);
+app.use("/api/payment", paymentRouter);  // ← NEW
 
 export default app;

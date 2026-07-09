@@ -2,6 +2,8 @@ import { generateResponse } from "../services/ai.service.js";
 import { searchInternet } from "../services/internet.service.js";
 import { sendEmail } from "../services/mail.service.js";
 import { generateGroqResponse } from "../services/models/groq.service.js";
+import axios from "axios";
+import * as cheerio from 'cheerio';
 
 export async function webSearch(req, res) {
   try {
@@ -247,5 +249,246 @@ export async function getBookmarks(req, res) {
       success: false,
       message: error.message
     });
+  }
+}
+
+
+export async function searchJobs(req, res) {
+  try {
+    const { query, location } = req.body;
+
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        message: "Job title is required"
+      });
+    }
+
+    const user = req.userData;
+    const searchQuery = `${query} ${location || ''}`.trim();
+
+    console.log("🔍 Searching Google Jobs for:", searchQuery);
+
+    // Build Google Jobs search URL
+    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery + ' jobs')}&ibp=htl;jobs`;
+
+    const response = await axios.get(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+
+    const $ = cheerio.load(response.data);
+    const jobs = [];
+
+    // Parse job listings from Google Jobs
+    $('.iFjolc').each((index, element) => {
+      if (jobs.length >= 10) return;
+
+      const title = $(element).find('.nJlQNd').text().trim() || 'Not specified';
+      const company = $(element).find('.vNEEBe').text().trim() || 'Unknown Company';
+      const location = $(element).find('.Qk80Jf').text().trim() || 'India';
+      
+      // Extract apply link
+      let applyUrl = $(element).find('a').attr('href') || '#';
+      if (applyUrl && !applyUrl.startsWith('http')) {
+        applyUrl = `https://www.google.com${applyUrl}`;
+      }
+
+      const description = $(element).find('.HBvzbc').text().trim() || 'No description available';
+
+      jobs.push({
+        id: `job_${index}`,
+        title: title,
+        company: company,
+        location: location,
+        salary: 'Not specified',
+        description: description.substring(0, 300) + '...',
+        applyUrl: applyUrl,
+        postedAt: new Date().toISOString(),
+        category: 'Not specified'
+      });
+    });
+
+    // If Google Jobs scraping fails, use Mock Jobs (for testing)
+    if (jobs.length === 0) {
+      console.log("⚠️ No jobs from Google, using mock data...");
+      
+      // Sample Indian jobs (for testing)
+      const mockJobs = [
+        {
+          id: 'mock_1',
+          title: 'React Developer',
+          company: 'Google India',
+          location: 'Bangalore, Karnataka',
+          salary: '₹15L - ₹25L',
+          description: 'We are looking for a skilled React Developer with 3+ years of experience...',
+          applyUrl: 'https://careers.google.com/jobs',
+          postedAt: new Date().toISOString(),
+          category: 'IT Jobs'
+        },
+        {
+          id: 'mock_2',
+          title: 'Full Stack Developer',
+          company: 'Amazon India',
+          location: 'Hyderabad, Telangana',
+          salary: '₹18L - ₹28L',
+          description: 'Looking for a Full Stack Developer with expertise in Node.js and React...',
+          applyUrl: 'https://amazon.jobs',
+          postedAt: new Date().toISOString(),
+          category: 'IT Jobs'
+        },
+        {
+          id: 'mock_3',
+          title: 'Frontend Engineer',
+          company: 'Flipkart',
+          location: 'Bangalore, Karnataka',
+          salary: '₹12L - ₹20L',
+          description: 'Join our frontend team to build scalable web applications using React and TypeScript...',
+          applyUrl: 'https://flipkart.careers',
+          postedAt: new Date().toISOString(),
+          category: 'IT Jobs'
+        },
+        {
+          id: 'mock_4',
+          title: 'Software Engineer',
+          company: 'Microsoft India',
+          location: 'Hyderabad, Telangana',
+          salary: '₹20L - ₹35L',
+          description: 'Microsoft is hiring software engineers for our cloud team...',
+          applyUrl: 'https://careers.microsoft.com',
+          postedAt: new Date().toISOString(),
+          category: 'IT Jobs'
+        },
+        {
+          id: 'mock_5',
+          title: 'Java Developer',
+          company: 'TCS',
+          location: 'Mumbai, Maharashtra',
+          salary: '₹8L - ₹15L',
+          description: 'We are looking for Java developers with Spring Boot experience...',
+          applyUrl: 'https://tcs.com/careers',
+          postedAt: new Date().toISOString(),
+          category: 'IT Jobs'
+        }
+      ];
+
+      // Return mock jobs
+      if (user.subscription.plan === 'free') {
+        user.subscription.jobSearchesToday += 1;
+        await user.save();
+      }
+
+      return res.status(200).json({
+        success: true,
+        total: mockJobs.length,
+        jobs: mockJobs,
+        plan: user.subscription.plan,
+        searchesUsed: user.subscription.jobSearchesToday,
+        limit: user.subscription.plan === 'free' ? 2 : 'Unlimited',
+        message: `Showing ${mockJobs.length} sample jobs (real jobs unavailable)`
+      });
+    }
+
+    // Increment search counter for free users
+    if (user.subscription.plan === 'free') {
+      user.subscription.jobSearchesToday += 1;
+      await user.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      total: jobs.length,
+      jobs: jobs,
+      plan: user.subscription.plan,
+      searchesUsed: user.subscription.jobSearchesToday,
+      limit: user.subscription.plan === 'free' ? 2 : 'Unlimited',
+      message: `Found ${jobs.length} jobs for "${query}"`
+    });
+
+  } catch (error) {
+    console.error("Job search error:", error.message);
+    
+    // Return mock jobs as fallback
+    try {
+      const user = req.userData;
+      const mockJobs = [
+        {
+          id: 'mock_1',
+          title: 'React Developer',
+          company: 'Google India',
+          location: 'Bangalore, Karnataka',
+          salary: '₹15L - ₹25L',
+          description: 'We are looking for a skilled React Developer with 3+ years of experience...',
+          applyUrl: 'https://careers.google.com/jobs',
+          postedAt: new Date().toISOString(),
+          category: 'IT Jobs'
+        },
+        {
+          id: 'mock_2',
+          title: 'Full Stack Developer',
+          company: 'Amazon India',
+          location: 'Hyderabad, Telangana',
+          salary: '₹18L - ₹28L',
+          description: 'Looking for a Full Stack Developer with expertise in Node.js and React...',
+          applyUrl: 'https://amazon.jobs',
+          postedAt: new Date().toISOString(),
+          category: 'IT Jobs'
+        },
+        {
+          id: 'mock_3',
+          title: 'Frontend Engineer',
+          company: 'Flipkart',
+          location: 'Bangalore, Karnataka',
+          salary: '₹12L - ₹20L',
+          description: 'Join our frontend team to build scalable web applications using React and TypeScript...',
+          applyUrl: 'https://flipkart.careers',
+          postedAt: new Date().toISOString(),
+          category: 'IT Jobs'
+        },
+        {
+          id: 'mock_4',
+          title: 'Software Engineer',
+          company: 'Microsoft India',
+          location: 'Hyderabad, Telangana',
+          salary: '₹20L - ₹35L',
+          description: 'Microsoft is hiring software engineers for our cloud team...',
+          applyUrl: 'https://careers.microsoft.com',
+          postedAt: new Date().toISOString(),
+          category: 'IT Jobs'
+        },
+        {
+          id: 'mock_5',
+          title: 'Java Developer',
+          company: 'TCS',
+          location: 'Mumbai, Maharashtra',
+          salary: '₹8L - ₹15L',
+          description: 'We are looking for Java developers with Spring Boot experience...',
+          applyUrl: 'https://tcs.com/careers',
+          postedAt: new Date().toISOString(),
+          category: 'IT Jobs'
+        }
+      ];
+
+      if (user && user.subscription.plan === 'free') {
+        user.subscription.jobSearchesToday += 1;
+        await user.save();
+      }
+
+      return res.status(200).json({
+        success: true,
+        total: mockJobs.length,
+        jobs: mockJobs,
+        plan: user?.subscription?.plan || 'free',
+        searchesUsed: user?.subscription?.jobSearchesToday || 0,
+        limit: '2',
+        message: `Showing ${mockJobs.length} sample jobs (API unavailable)`
+      });
+    } catch (fallbackError) {
+      return res.status(500).json({
+        success: false,
+        message: "All job sources failed. Please try again later."
+      });
+    }
   }
 }
