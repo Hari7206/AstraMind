@@ -1,0 +1,82 @@
+/* Home.css - Additional styles for the Home component */
+
+/* Smooth transitions */
+.transition-all {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Prose styling for markdown */
+.prose {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.prose p {
+  margin-bottom: 0.5rem;
+}
+
+.prose ul, .prose ol {
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.prose li {
+  margin-bottom: 0.25rem;
+}
+
+.prose code {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.prose pre {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+
+.prose a {
+  color: #fb923c;
+  text-decoration: underline;
+}
+
+.prose a:hover {
+  color: #f97316;
+}
+
+.prose strong {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  font-weight: 600;
+  margin: 0.75rem 0 0.5rem 0;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.prose h1 { font-size: 1.5rem; }
+.prose h2 { font-size: 1.25rem; }
+.prose h3 { font-size: 1.125rem; }
+.prose h4 { font-size: 1rem; }
+
+/* Custom scrollbar for the app */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

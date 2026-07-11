@@ -1,0 +1,172 @@
+/* Ambient glow animation */
+.ambient-glow {
+  animation: ambientPulse 6s ease-in-out infinite;
+}
+
+@keyframes ambientPulse {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: translate(-50%, 0) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -10px) scale(1.05);
+  }
+}
+
+/* Card wrapper animations */
+.card-wrapper {
+  animation: cardGlowPulse 5s ease-in-out infinite, borderGlowPulse 5s ease-in-out infinite;
+}
+
+@keyframes cardGlowPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes borderGlowPulse {
+  0%,
+  100% {
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+  50% {
+    border-color: rgba(255, 180, 120, 0.12);
+  }
+}
+
+/* Card container - important for clipping */
+.card-container {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shine overlay - fixed version */
+.shine-overlay {
+  position: absolute;
+  top: -100%;
+  left: -100%;
+  width: 300%;
+  height: 300%;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(255, 200, 150, 0.03) 40%,
+    rgba(255, 255, 255, 0.08) 48%,
+    rgba(255, 255, 255, 0.12) 52%,
+    rgba(255, 255, 255, 0.08) 56%,
+    rgba(255, 200, 150, 0.03) 60%,
+    transparent 100%
+  );
+  animation: shineMove 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+  z-index: 1;
+  will-change: transform;
+}
+
+@keyframes shineMove {
+  0% {
+    transform: translateX(-30%) translateY(-30%) rotate(20deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(30%) translateY(30%) rotate(20deg);
+    opacity: 0;
+  }
+}
+
+/* Input wrapper styles */
+.input-wrapper {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-wrapper:focus-within {
+  border-color: rgba(255, 180, 120, 0.25);
+  box-shadow: 0 0 30px -10px rgba(255, 150, 50, 0.08);
+}
+
+.password-wrapper {
+  padding-right: 0.375rem;
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+}
+
+/* Input field styles */
+.input-field {
+  width: 100%;
+  background: transparent;
+  outline: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.875rem;
+}
+
+.input-field::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.password-input {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+/* Password toggle button */
+.password-toggle {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.3);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.3s ease;
+  flex-shrink: 0;
+}
+
+.password-toggle:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Sign in button */
+.signin-btn {
+  width: 100%;
+  background: linear-gradient(to right, #fb923c, #ea580c);
+  color: white;
+  font-weight: 500;
+  padding: 0.625rem 0;
+  border-radius: 0.75rem;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 30px rgba(255, 150, 50, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.signin-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 30px rgba(255, 150, 50, 0.4);
+}
+
+.signin-btn:active:not(:disabled) {
+  transform: translateY(0px);
+}
+
+.signin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

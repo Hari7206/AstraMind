@@ -1,0 +1,427 @@
+/* Pricing.css - Complete styling for pricing page */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.pricing-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000000;
+  color: #ffffff;
+  padding: 2rem 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ambient Glow */
+.ambient-glow-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ambient-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+}
+
+.orb-1 {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30rem;
+  height: 20rem;
+  background: rgba(251, 146, 60, 0.08);
+  animation: floatGlow 6s ease-in-out infinite;
+}
+
+.orb-2 {
+  bottom: 0;
+  right: 0;
+  width: 25rem;
+  height: 25rem;
+  background: rgba(251, 146, 60, 0.04);
+  animation: floatGlowDelayed 8s ease-in-out infinite;
+}
+
+@keyframes floatGlow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.05);
+  }
+}
+
+@keyframes floatGlowDelayed {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+/* Content */
+.pricing-content {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 56rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Header */
+.pricing-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+  width: 100%;
+}
+
+.brand-text {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.brand-highlight {
+  color: #fb923c;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin-top: 0.75rem;
+}
+
+.page-subtitle {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 0.25rem;
+}
+
+/* Plans Grid */
+.plans-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 48rem;
+}
+
+/* Plan Card */
+.plan-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  border-radius: 1.75rem;
+  padding: 1.75rem;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.plan-card:hover {
+  transform: translateY(-2px);
+}
+
+.plan-free {
+  justify-content: space-between;
+}
+
+.plan-pro {
+  border: 2px solid rgba(251, 146, 60, 0.4);
+  box-shadow: 0 20px 60px -10px rgba(251, 146, 60, 0.15);
+  padding-top: 1.75rem;
+}
+
+/* Shimmer Animation */
+.card-shimmer {
+  position: absolute;
+  top: -100%;
+  left: -100%;
+  width: 300%;
+  height: 300%;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(255, 200, 150, 0.03) 40%,
+    rgba(255, 255, 255, 0.08) 48%,
+    rgba(255, 255, 255, 0.12) 52%,
+    rgba(255, 255, 255, 0.08) 56%,
+    rgba(255, 200, 150, 0.03) 60%,
+    transparent 100%
+  );
+  animation: shimmerMove 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes shimmerMove {
+  0% {
+    transform: translateX(-30%) translateY(-30%) rotate(20deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(30%) translateY(30%) rotate(20deg);
+    opacity: 0;
+  }
+}
+
+/* Popular Badge */
+.popular-badge-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+  margin-top: -0.75rem;
+}
+
+.popular-badge {
+  background: linear-gradient(to right, #fb923c, #ea580c);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.35rem 1.5rem;
+  border-radius: 9999px;
+  box-shadow: 0 8px 30px rgba(251, 146, 60, 0.3);
+  z-index: 20;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Plan Content */
+.plan-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* Plan Header */
+.plan-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.plan-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.plan-price {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-top: 0.5rem;
+}
+
+.plan-duration {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Features */
+.plan-features {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+  margin-bottom: 1.5rem;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.875rem;
+}
+
+.feature-item.disabled {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.feature-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  width: 1.25rem;
+  text-align: center;
+}
+
+.feature-icon.active {
+  color: #fb923c;
+}
+
+.feature-icon.inactive {
+  color: #ef4444;
+}
+
+/* Plan Buttons */
+.plan-btn {
+  width: 100%;
+  padding: 0.75rem 0;
+  border-radius: 0.75rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.95rem;
+  margin-top: auto;
+}
+
+.plan-btn-free {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.4);
+  cursor: not-allowed;
+}
+
+.plan-btn-pro {
+  background: linear-gradient(to right, #fb923c, #ea580c);
+  color: #ffffff;
+  box-shadow: 0 8px 30px rgba(251, 146, 60, 0.3);
+}
+
+.plan-btn-pro:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 30px rgba(251, 146, 60, 0.4);
+}
+
+.plan-btn-pro:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.plan-btn-pro:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.plan-btn-current {
+  background: #10b981;
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.3);
+}
+
+.plan-btn-current:hover:not(:disabled) {
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.4);
+}
+
+.btn-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+/* Back Button */
+.back-button {
+  text-align: center;
+  margin-top: 2rem;
+  width: 100%;
+}
+
+.back-btn {
+  color: rgba(255, 255, 255, 0.4);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: color 0.3s ease;
+  padding: 0.5rem 1rem;
+}
+
+.back-btn:hover {
+  color: #fb923c;
+}
+
+/* Responsive */
+@media (max-width: 820px) {
+  .plans-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    max-width: 28rem;
+  }
+  
+  .page-title {
+    font-size: 1.75rem;
+  }
+  
+  .plan-card {
+    padding: 1.5rem;
+  }
+  
+  .plan-pro {
+    padding-top: 1.5rem;
+  }
+  
+  .plan-price {
+    font-size: 1.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .pricing-page {
+    padding: 1rem 0.75rem;
+  }
+  
+  .pricing-content {
+    padding: 0;
+  }
+  
+  .plan-card {
+    border-radius: 1.25rem;
+    padding: 1.25rem;
+  }
+  
+  .plan-pro {
+    padding-top: 1.25rem;
+  }
+  
+  .page-title {
+    font-size: 1.5rem;
+  }
+  
+  .popular-badge {
+    font-size: 0.6rem;
+    padding: 0.25rem 1rem;
+  }
+  
+  .plan-price {
+    font-size: 1.5rem;
+  }
+  
+  .plan-name {
+    font-size: 1.1rem;
+  }
+  
+  .feature-item {
+    font-size: 0.8rem;
+  }
+}

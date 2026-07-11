@@ -7,8 +7,9 @@ const chatSlice = createSlice({
         currentChatId: null,
         isLoading: false,
         error: null,
+        plan: "free",
         isAiThinking: false,
-      selectedModel: "mistral",
+        selectedModel: "mistral",
     },
     reducers: {
         setModel: (state, action) => {
@@ -116,7 +117,10 @@ const chatSlice = createSlice({
         },
         setError: (state, action) => {
             state.error = action.payload
-        }
+        },
+        setPlan: (state, action) => {
+            state.plan = action.payload;
+        },
     }
 })
 
@@ -132,6 +136,7 @@ export const {
     updateStreamingMessage,
     setAiThinking,
     setModel,
+    setPlan,
 } = chatSlice.actions
 
 export default chatSlice.reducer

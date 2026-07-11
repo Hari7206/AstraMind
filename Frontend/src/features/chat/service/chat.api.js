@@ -92,7 +92,13 @@ export const webSearch = async (query) => {
 };
 
 export const generateEmail = async (data) => {
-  const response = await api.post("/api/agent/email/generate", data);
+  // If data is a string, send it as recipient
+  // If data is an object, send as is
+  const payload = typeof data === 'string' 
+    ? { recipient: data, topic: "" } 
+    : data;
+  
+  const response = await api.post("/api/agent/email/generate", payload);
   return response.data;
 };
 
@@ -113,5 +119,20 @@ export const saveBookmark = async (data) => {
 
 export const getBookmarks = async () => {
   const response = await api.get("/api/agent/bookmarks");
+  return response.data;
+};
+
+
+export const searchJobs = async (data) => {
+  const response = await api.post("/api/agent/jobs/search", data);
+  return response.data;
+};
+
+export const saveAgentMessages = async (chatId, userMessage, aiMessage) => {
+  const response = await api.post("/api/chats/agent-messages", {
+    chatId,
+    userMessage,
+    aiMessage
+  });
   return response.data;
 };

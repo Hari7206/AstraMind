@@ -2,9 +2,9 @@ import { generateResponse } from "../services/ai.service.js";
 import { searchInternet } from "../services/internet.service.js";
 import { sendEmail } from "../services/mail.service.js";
 import { generateGroqResponse } from "../services/models/groq.service.js";
+import { YoutubeTranscript } from 'youtube-transcript';
 import axios from "axios";
 import * as cheerio from 'cheerio';
-
 export async function webSearch(req, res) {
   try {
     const { query } = req.body;
@@ -16,24 +16,38 @@ export async function webSearch(req, res) {
       });
     }
 
+    console.log("🔍 Web Search:", query);
+
     const results = await searchInternet({ query });
     const parsedResults = JSON.parse(results);
 
+    // Better prompt for better summaries
     const summary = await generateGroqResponse([
       {
         role: "system",
-        content: "You are a search assistant. Summarize the search results in a clear, structured way. Include key points and sources."
+        content: `You are a helpful search assistant. Provide accurate, well-structured answers based ONLY on the search results.
+
+        RULES:
+        1. Start with a brief, clear answer
+        2. Use bullet points for key information
+        3. Cite sources at the end
+        4. If information is not in search results, say so
+        5. Keep it concise and useful`
       },
       {
         role: "user",
-        content: `Search results for "${query}":\n${JSON.stringify(parsedResults, null, 2)}\n\nSummarize these results:`
+        content: `Search Query: "${query}"
+
+        Search Results:
+        ${JSON.stringify(parsedResults, null, 2)}
+
+        Provide a clear, structured answer based on these results:`
       }
     ]);
 
     return res.status(200).json({
       success: true,
       query,
-      results: parsedResults,
       summary,
       sources: parsedResults.results?.map(r => r.url) || []
     });
@@ -86,7 +100,32 @@ export async function sendEmailAgent(req, res) {
 
 export async function generateEmail(req, res) {
   try {
-    const { recipient, topic, tone, additionalInfo } = req.body;
+    let { recipient, topic, tone, additionalInfo } = req.body;
+
+    console.log("📧 Received:", { recipient, topic });
+
+    // If recipient is raw text and no topic, parse it
+    if (recipient && !topic) {
+      const text = recipient;
+      console.log("📝 Parsing raw text:", text);
+      
+      // Try to extract email from text
+      const emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+      if (emailMatch) {
+        recipient = emailMatch[1];
+        topic = text.replace(emailMatch[1], '').trim();
+        // Remove common phrases
+        topic = topic.replace(/^create email about\s*/i, '');
+        topic = topic.replace(/^write email about\s*/i, '');
+        topic = topic.replace(/^send email about\s*/i, '');
+        topic = topic.replace(/^email about\s*/i, '');
+        topic = topic.trim();
+      } else {
+        // If no email found, use default
+        recipient = "recipient@example.com";
+        topic = text;
+      }
+    }
 
     if (!recipient || !topic) {
       return res.status(400).json({
@@ -95,29 +134,52 @@ export async function generateEmail(req, res) {
       });
     }
 
-    const prompt = `Generate a professional email with the following details:
-- Recipient: ${recipient}
-- Topic: ${topic}
-- Tone: ${tone || 'professional'}
-${additionalInfo ? `- Additional context: ${additionalInfo}` : ''}
+    console.log("📧 Recipient:", recipient);
+    console.log("📝 Topic:", topic);
 
-Generate a complete email with subject line, greeting, body, and signature.`;
+    const prompt = `Generate ONLY the email content. No explanations, no extra text.
+
+Recipient: ${recipient}
+Topic: ${topic}
+Tone: ${tone || 'professional'}
+${additionalInfo ? `Additional context: ${additionalInfo}` : ''}
+
+Generate a complete email with:
+- Subject line (starting with "Subject:")
+- Greeting
+- Body
+- Signature
+
+Output ONLY the email, nothing else.`;
 
     const emailContent = await generateGroqResponse([
       {
         role: "system",
-        content: "You are an email writing assistant. Generate professional, well-structured emails."
+        content: "You are an email writer. Generate ONLY the email content. No explanations, no extra text, no examples. Just the email."
       },
       {
         role: "user",
         content: prompt
       }
     ]);
+
+    // Extract subject and body
     const lines = emailContent.split('\n');
     let subject = lines.find(line => line.toLowerCase().includes('subject:')) || 'No subject';
     subject = subject.replace(/subject:?\s*/i, '').trim();
     
-    const body = lines.filter(line => !line.toLowerCase().includes('subject:')).join('\n').trim();
+    const subjectIndex = lines.findIndex(line => line.toLowerCase().includes('subject:'));
+    const bodyLines = subjectIndex !== -1 ? lines.slice(subjectIndex + 1) : lines;
+    let body = bodyLines.join('\n').trim();
+
+    // Clean up extra text
+    body = body
+      .replace(/^Here is (a|the) (professional )?email.*?:\s*/i, '')
+      .replace(/^Here you go:\s*/i, '')
+      .replace(/^Sure.*?:\s*/i, '')
+      .replace(/^Okay.*?:\s*/i, '')
+      .replace(/```/g, '')
+      .trim();
 
     return res.status(200).json({
       success: true,
@@ -129,10 +191,11 @@ Generate a complete email with subject line, greeting, body, and signature.`;
     });
 
   } catch (error) {
-    console.error("Generate email error:", error.message);
+    console.error("❌ Generate email error:", error.message);
+    console.error("❌ Full error:", error);
     return res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message || "Failed to generate email"
     });
   }
 }
@@ -155,14 +218,31 @@ export async function summarizeYouTube(req, res) {
         message: "Invalid YouTube URL"
       });
     }
+
+    console.log("📺 Getting transcript for:", videoId);
+
+    // ✅ This is the correct way
+    const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+    
+    if (!transcript || transcript.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No transcript available for this video"
+      });
+    }
+
+    // Combine transcript text
+    const fullText = transcript.map(item => item.text).join(' ');
+
+    // Generate summary using Groq
     const summary = await generateGroqResponse([
       {
         role: "system",
-        content: "You are a YouTube video summarizer. Provide detailed, structured summaries of video content."
+        content: "You are a YouTube video summarizer. Summarize the video content based on the transcript provided."
       },
       {
         role: "user",
-        content: `Summarize the YouTube video with ID: ${videoId}\n\nProvide:\n1. Main topic\n2. Key points (bullet points)\n3. Timestamps if available\n4. Conclusion\n\nIf you can't access the video, suggest what the video might be about based on the ID or ask for a description.`
+        content: `Here is the transcript of the YouTube video:\n\n${fullText.substring(0, 8000)}\n\nProvide a detailed summary of the video including:\n1. Main topic\n2. Key points (bullet points)\n3. Important details\n4. Conclusion`
       }
     ]);
 
@@ -171,18 +251,55 @@ export async function summarizeYouTube(req, res) {
       videoId,
       url,
       summary,
-      suggestion: "For accurate summaries, consider using YouTube Transcript API"
+      transcriptLength: fullText.length
     });
 
   } catch (error) {
     console.error("YouTube summary error:", error.message);
+    
+    // Fallback: Try to get video metadata
+    try {
+      console.log("🔄 Falling back to YouTube API...");
+      
+      const response = await axios.get(
+        `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${process.env.YOUTUBE_API_KEY}&part=snippet`
+      );
+      
+      const videoData = response.data.items?.[0]?.snippet;
+      if (videoData) {
+        const title = videoData.title || 'Unknown';
+        const description = videoData.description || '';
+        const channel = videoData.channelTitle || 'Unknown';
+        
+        const fallbackSummary = await generateGroqResponse([
+          {
+            role: "system",
+            content: "You are a YouTube video summarizer. Summarize the video based on its metadata."
+          },
+          {
+            role: "user",
+            content: `Summarize this YouTube video:\n\nTitle: ${title}\nChannel: ${channel}\nDescription: ${description}\n\nProvide a brief summary.`
+          }
+        ]);
+        
+        return res.status(200).json({
+          success: true,
+          videoId,
+          url,
+          summary: fallbackSummary,
+          note: "Summary based on video metadata (transcript not available)"
+        });
+      }
+    } catch (fallbackError) {
+      console.error("Fallback failed:", fallbackError.message);
+    }
+    
     return res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message || "Failed to summarize video"
     });
   }
 }
-
 function extractYouTubeId(url) {
   const patterns = [
     /(?:youtube\.com\/watch\?v=)([^&]+)/,
@@ -203,6 +320,8 @@ export async function saveBookmark(req, res) {
     const { title, url, description, tags } = req.body;
     const userId = req.user.id;
 
+    console.log("🔖 Received bookmark:", { title, url, userId });
+
     if (!title || !url) {
       return res.status(400).json({
         success: false,
@@ -210,6 +329,7 @@ export async function saveBookmark(req, res) {
       });
     }
 
+    // For now, just return success (no DB yet)
     const bookmark = {
       userId,
       title,
@@ -218,17 +338,20 @@ export async function saveBookmark(req, res) {
       tags: tags || [],
       savedAt: new Date().toISOString()
     };
-    return res.status(201).json({
+
+    console.log("✅ Bookmark processed:", bookmark.title);
+
+    return res.status(200).json({
       success: true,
       message: "Bookmark saved successfully",
       bookmark
     });
 
   } catch (error) {
-    console.error("Save bookmark error:", error.message);
+    console.error("❌ Save bookmark error:", error.message);
     return res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message || "Failed to save bookmark"
     });
   }
 }

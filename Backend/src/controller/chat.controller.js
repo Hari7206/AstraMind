@@ -148,3 +148,52 @@ export async function deleteChat(req, res) {
     })
 
 }
+
+export async function saveAgentMessages(req, res) {
+  try {
+    const { chatId, userMessage, aiMessage } = req.body;
+    const userId = req.user.id;
+
+    // If no chatId, create a new chat
+    let chat = await chatModel.findOne({ _id: chatId, user: userId });
+    if (!chat) {
+      const title = userMessage.substring(0, 30);
+      chat = await chatModel.create({
+        user: userId,
+        title: title + (userMessage.length > 30 ? '...' : ''),
+      });
+    }
+
+    // Save user message
+    const userMsg = await messageModel.create({
+      chat: chat._id,
+      content: userMessage,
+      role: "user",
+      messageType: "text"
+    });
+
+    // Save AI message
+    const aiMsg = await messageModel.create({
+      chat: chat._id,
+      content: aiMessage,
+      role: "ai",
+      messageType: "text",
+      model: "mistral"
+    });
+
+    return res.status(200).json({
+      success: true,
+      chatId: chat._id,
+      userMessage: userMsg,
+      aiMessage: aiMsg,
+      chat: chat
+    });
+
+  } catch (error) {
+    console.error("Save agent messages error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+}

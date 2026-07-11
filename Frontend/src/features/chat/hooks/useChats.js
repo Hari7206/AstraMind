@@ -10,12 +10,14 @@ import {
     chatWithDocument,
     getDocuments,
     deleteDocument,
-    webSearch,           
-    generateEmail,       
-    sendEmailAgent,      
-    summarizeYouTube,    
-    saveBookmark,        
-    getBookmarks         
+    webSearch,
+    generateEmail,
+    sendEmailAgent,
+    summarizeYouTube,
+    saveBookmark,
+    getBookmarks,
+    searchJobs ,
+    saveAgentMessages
 } from "../service/chat.api.js";
 
 import {
@@ -350,6 +352,29 @@ export const useChats = () => {
         }
     }, [dispatch]);
 
+    const handleSearchJobs = useCallback(async (data) => {
+        try {
+            dispatch(setLoading(true));
+            const result = await searchJobs(data);
+            return result;
+        } catch (error) {
+            dispatch(setError(error.message));
+            throw error;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    }, [dispatch]);
+
+const handleSaveAgentMessages = useCallback(async (chatId, userMessage, aiMessage) => {
+  try {
+    const response = await saveAgentMessages(chatId, userMessage, aiMessage);
+    return response;
+  } catch (error) {
+    console.error("Save agent messages error:", error.message);
+    throw error;
+  }
+}, []);
+
     return {
         initializeSocketConnection,
         handleSendMessage,
@@ -366,6 +391,8 @@ export const useChats = () => {
         handleSendEmail,
         handleSummarizeYouTube,
         handleSaveBookmark,
-        handleGetBookmarks
+        handleGetBookmarks,
+        handleSearchJobs ,
+          handleSaveAgentMessages
     };
 };
