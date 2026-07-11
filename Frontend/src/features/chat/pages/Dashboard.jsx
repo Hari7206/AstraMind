@@ -37,8 +37,7 @@ export default function Home() {
     handleGenerateEmail,
     handleSummarizeYouTube,
     handleSaveBookmark,
-    handleSearchJobs ,
-     handleSaveAgentMessages 
+    handleSearchJobs
   } = useChats();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -57,6 +56,8 @@ export default function Home() {
   const [showUpgradeCard, setShowUpgradeCard] = useState(false);
   const [typingMessage, setTypingMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
+
   const recognitionRef = useRef(null);
   const baseMessageRef = useRef("");
   const chatEndRef = useRef(null);
@@ -66,23 +67,26 @@ export default function Home() {
 
   const activeChat = currentChatId ? chats[currentChatId] : null;
 
-  // Typing animation function
- const typeMessage = async (text) => {
-  setIsTyping(true);
-  setTypingMessage("");
-  
-  let currentText = "";
-  const chars = text.split("");
-  const delay = 8;
+  const typeMessage = async (text) => {
+    setIsTyping(true);
+    setTypingMessage("");
+    
+    let currentText = "";
+    const chars = text.split("");
+    const delay = 8;
 
-  for (let i = 0; i < chars.length; i++) {
-    currentText += chars[i];
-    setTypingMessage(currentText);
-    await new Promise(resolve => setTimeout(resolve, delay));
-  }
-  
-  setIsTyping(false);
-};
+    for (let i = 0; i < chars.length; i++) {
+      currentText += chars[i];
+      setTypingMessage(currentText);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    setIsTyping(false);
+    const container = messagesContainerRef.current;
+    if (container && !isUserScrolling) {
+      container.scrollTop = container.scrollHeight;
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -121,15 +125,38 @@ export default function Home() {
     if (container) {
       const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
       setIsUserScrolling(!isNearBottom);
+      if (isNearBottom) {
+        setShouldScrollToBottom(false);
+      }
     }
   };
 
   useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (container && !isUserScrolling) {
-      container.scrollTop = container.scrollHeight;
+    if (activeChat?.messages?.length > 0) {
+      setShouldScrollToBottom(true);
     }
-  }, [activeChat?.messages, isUserScrolling]);
+  }, [activeChat?.messages?.length]);
+
+  useEffect(() => {
+    if (shouldScrollToBottom) {
+      const container = messagesContainerRef.current;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+        setShouldScrollToBottom(false);
+      }
+    }
+  }, [activeChat?.messages, shouldScrollToBottom]);
+
+  useEffect(() => {
+    if (isAiThinking) {
+      const container = messagesContainerRef.current;
+      if (container && !isUserScrolling) {
+        setTimeout(() => {
+          container.scrollTop = container.scrollHeight;
+        }, 50);
+      }
+    }
+  }, [isAiThinking]);
 
   useEffect(() => {
     return () => {
@@ -254,105 +281,104 @@ export default function Home() {
     }
   };
 
-const handleAgentAction = async (action, data) => {
-  setSelectedMode(null);
-  setMessage("");
-
-  let displayMessage = "";
-  let userMessage = data; // ← Just the user's input, no prefix
-
-  try {
-    switch (action) {
-      case 'webSearch': {
-        const result = await handleWebSearch(data);
-        displayMessage = `🔍 **Web Search: ${data}**\n\n${result.summary}\n\n**Sources:**\n${result.sources.map((s, i) => `${i+1}. ${s}`).join('\n')}`;
-        break;
-      }
-      case 'jobSearch': {
-        const result = await handleSearchJobs(data);
-        displayMessage = `💼 **${result.total} Jobs Found**\n\n`;
-        result.jobs.forEach((job, i) => {
-          displayMessage += `${i+1}. **${job.title}** at **${job.company}**\n`;
-          displayMessage += `   📍 ${job.location}\n`;
-          displayMessage += `   💰 ${job.salary}\n`;
-          displayMessage += `   📝 ${job.description?.substring(0, 150)}...\n`;
-          displayMessage += `   🔗 [Apply Now](${job.applyUrl})\n\n`;
-        });
-        if (result.plan === 'free') {
-          setSearchesUsed(result.searchesUsed);
-          if (result.searchesUsed >= 2) setShowUpgradeCard(true);
-          displayMessage += `\n📊 **Today's Usage:** ${result.searchesUsed}/${result.limit} searches used`;
-        }
-        break;
-      }
-      case 'generateEmail': {
-        const result = await handleGenerateEmail(data);
-        displayMessage = `✉️ **Generated Email**\n\n**Subject:** ${result.email.subject}\n\n${result.email.body}`;
-        break;
-      }
-      case 'youtubeSummarize': {
-        const result = await handleSummarizeYouTube(data);
-        displayMessage = `📺 **YouTube Summary**\n\n${result.summary}`;
-        break;
-      }
-      case 'saveBookmark': {
-        const parts = data.split(',').map(s => s.trim());
-        const title = parts[0] || 'Untitled';
-        const url = parts[1] || data;
-        const result = await handleSaveBookmark({ title, url });
-        displayMessage = `🔖 **Bookmark Saved!**\n\n**Title:** ${result.bookmark.title}\n**URL:** ${result.bookmark.url}`;
-        break;
-      }
-      default:
-        return;
-    }
-
-    // Add user message (just the query, no prefix)
-    if (currentChatId) {
-      dispatch(addNewMessage({
-        chatId: currentChatId,
-        content: userMessage, // ← Just "hey", not "🔍 Web Search: hey"
-        role: "user",
-        messageType: "text"
-      }));
-    }
-
-    // Show typing animation
-    dispatch(setAiThinking(true));
-    await typeMessage(displayMessage);
-    dispatch(setAiThinking(false));
-
-    // Add AI response
-    if (currentChatId) {
-      dispatch(addNewMessage({
-        chatId: currentChatId,
-        content: typingMessage || displayMessage,
-        role: "ai",
-        messageType: "text"
-      }));
-    }
-
-    setIsTyping(false);
-    setTypingMessage("");
-
-  } catch (error) {
-    console.error("Agent action error:", error);
-    dispatch(setAiThinking(false));
-    setIsTyping(false);
-    setTypingMessage("");
-    if (currentChatId) {
-      dispatch(addNewMessage({
-        chatId: currentChatId,
-        content: `❌ Error: ${error.message}`,
-        role: "ai",
-        messageType: "text"
-      }));
-    }
-  } finally {
+  const handleAgentAction = async (action, data) => {
+    setSelectedMode(null);
     setMessage("");
-    dispatch(setAiThinking(false));
-  }
-};
+
+    let displayMessage = "";
+    let userMessage = data;
+
+    try {
+      switch (action) {
+        case 'webSearch': {
+          const result = await handleWebSearch(data);
+          displayMessage = `🔍 **Web Search: ${data}**\n\n${result.summary}\n\n**Sources:**\n${result.sources.map((s, i) => `${i+1}. ${s}`).join('\n')}`;
+          break;
+        }
+        case 'jobSearch': {
+          const result = await handleSearchJobs(data);
+          displayMessage = `💼 **${result.total} Jobs Found**\n\n`;
+          result.jobs.forEach((job, i) => {
+            displayMessage += `${i+1}. **${job.title}** at **${job.company}**\n`;
+            displayMessage += `   📍 ${job.location}\n`;
+            displayMessage += `   💰 ${job.salary}\n`;
+            displayMessage += `   📝 ${job.description?.substring(0, 150)}...\n`;
+            displayMessage += `   🔗 [Apply Now](${job.applyUrl})\n\n`;
+          });
+          if (result.plan === 'free') {
+            setSearchesUsed(result.searchesUsed);
+            if (result.searchesUsed >= 2) setShowUpgradeCard(true);
+            displayMessage += `\n📊 **Today's Usage:** ${result.searchesUsed}/${result.limit} searches used`;
+          }
+          break;
+        }
+        case 'generateEmail': {
+          const result = await handleGenerateEmail(data);
+          displayMessage = `✉️ **Generated Email**\n\n**Subject:** ${result.email.subject}\n\n${result.email.body}`;
+          break;
+        }
+        case 'youtubeSummarize': {
+          const result = await handleSummarizeYouTube(data);
+          displayMessage = `📺 **YouTube Summary**\n\n${result.summary}`;
+          break;
+        }
+        case 'saveBookmark': {
+          const parts = data.split(',').map(s => s.trim());
+          const title = parts[0] || 'Untitled';
+          const url = parts[1] || data;
+          const result = await handleSaveBookmark({ title, url });
+          displayMessage = `🔖 **Bookmark Saved!**\n\n**Title:** ${result.bookmark.title}\n**URL:** ${result.bookmark.url}`;
+          break;
+        }
+        default:
+          return;
+      }
+
+      if (currentChatId) {
+        dispatch(addNewMessage({
+          chatId: currentChatId,
+          content: userMessage,
+          role: "user",
+          messageType: "text"
+        }));
+        setShouldScrollToBottom(true);
+      }
+
+      dispatch(setAiThinking(true));
+      await typeMessage(displayMessage);
+      dispatch(setAiThinking(false));
+
+      if (currentChatId) {
+        dispatch(addNewMessage({
+          chatId: currentChatId,
+          content: typingMessage || displayMessage,
+          role: "ai",
+          messageType: "text"
+        }));
+      }
+
+      setIsTyping(false);
+      setTypingMessage("");
+
+    } catch (error) {
+      console.error("Agent action error:", error);
+      dispatch(setAiThinking(false));
+      setIsTyping(false);
+      setTypingMessage("");
+      if (currentChatId) {
+        dispatch(addNewMessage({
+          chatId: currentChatId,
+          content: `❌ Error: ${error.message}`,
+          role: "ai",
+          messageType: "text"
+        }));
+      }
+    } finally {
+      setMessage("");
+      dispatch(setAiThinking(false));
+    }
+  };
+
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -464,53 +490,53 @@ const handleAgentAction = async (action, data) => {
     }
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  const trimmedMessage = message.trim();
-  if (!trimmedMessage) return;
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage) return;
 
- 
-  setMessage("");
+    setMessage("");
 
-  if (selectedMode) {
-    const modeMap = {
-      'webSearch': 'webSearch',
-      'jobSearch': 'jobSearch',
-      'email': 'generateEmail',
-      'youtube': 'youtubeSummarize',
-      'bookmark': 'saveBookmark'
-    };
+    if (selectedMode) {
+      const modeMap = {
+        'webSearch': 'webSearch',
+        'jobSearch': 'jobSearch',
+        'email': 'generateEmail',
+        'youtube': 'youtubeSummarize',
+        'bookmark': 'saveBookmark'
+      };
 
-    if (modeMap[selectedMode]) {
-      await handleAgentAction(modeMap[selectedMode], trimmedMessage);
-      return;
+      if (modeMap[selectedMode]) {
+        await handleAgentAction(modeMap[selectedMode], trimmedMessage);
+        return;
+      }
     }
-  }
 
-  const currentChat = chats[currentChatId];
-  const hasDocument = currentChat?.documentId;
+    const currentChat = chats[currentChatId];
+    const hasDocument = currentChat?.documentId;
 
-  if (hasDocument && currentChatId) {
-    dispatch(addNewMessage({
-      chatId: currentChatId,
-      content: trimmedMessage,
-      role: "user"
-    }));
-
-    await handleChatWithDocument(hasDocument, trimmedMessage, currentChatId);
-  } else {
-    if (currentChatId) {
+    if (hasDocument && currentChatId) {
       dispatch(addNewMessage({
         chatId: currentChatId,
         content: trimmedMessage,
         role: "user"
       }));
+      setShouldScrollToBottom(true);
+      await handleChatWithDocument(hasDocument, trimmedMessage, currentChatId);
+    } else {
+      if (currentChatId) {
+        dispatch(addNewMessage({
+          chatId: currentChatId,
+          content: trimmedMessage,
+          role: "user"
+        }));
+        setShouldScrollToBottom(true);
+      }
+      await handleSendMessage(trimmedMessage, currentChatId, selectedModel);
     }
+  };
 
-    await handleSendMessage(trimmedMessage, currentChatId, selectedModel);
-  }
-};
   useEffect(() => {
     if (!currentChatId) return;
 
@@ -550,7 +576,6 @@ const handleSubmit = async (e) => {
 
   return (
     <div className="flex h-screen bg-black text-white overflow-hidden">
-      {/* Sidebar */}
       <div
         className={`${sidebarOpen ? "w-72" : "w-16"} flex flex-col bg-[#0a0a0f] border-r border-white/5 transition-all duration-300 h-screen flex-shrink-0`}
       >
@@ -602,8 +627,7 @@ const handleSubmit = async (e) => {
                   key={chat.id}
                   type="button"
                   onClick={() => handleSelectChat(chat.id)}
-                  className={`relative w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all ${isActive ? "bg-orange-500/10 text-white border border-orange-500/20" : "text-slate-400 hover:text-slate-100 hover:bg-white/5"
-                    } ${!sidebarOpen && "flex justify-center"}`}
+                  className={`relative w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all ${isActive ? "bg-orange-500/10 text-white border border-orange-500/20" : "text-slate-400 hover:text-slate-100 hover:bg-white/5"} ${!sidebarOpen && "flex justify-center"}`}
                 >
                   {isActive && (
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-orange-500" />
@@ -649,9 +673,7 @@ const handleSubmit = async (e) => {
         </div>
       </div>
 
-      {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0 h-screen bg-black">
-        {/* Header */}
         <div className="px-6 py-3 flex items-center justify-between flex-shrink-0 border-b border-white/5">
           <div className="flex items-center gap-3">
             <h2 className="font-semibold text-lg text-white">
@@ -665,22 +687,16 @@ const handleSubmit = async (e) => {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Plan Badge */}
-            <span className={`text-xs px-3 py-1 rounded-full font-medium ${plan === 'pro'
-                ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                : 'bg-white/10 text-slate-300 border border-white/10'
-              }`}>
+            <span className={`text-xs px-3 py-1 rounded-full font-medium ${plan === 'pro' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-white/10 text-slate-300 border border-white/10'}`}>
               {plan === 'pro' ? '⭐ Pro' : '🔓 Free'}
             </span>
 
-            {/* Usage Display */}
             {plan === 'free' && (
               <span className="text-xs text-slate-400 bg-white/5 px-3 py-1 rounded-full">
                 📊 {searchesUsed}/{searchesLimit} searches today
               </span>
             )}
 
-            {/* Upgrade Button */}
             {plan === 'free' && (
               <button
                 onClick={() => navigate("/pricing")}
@@ -705,7 +721,6 @@ const handleSubmit = async (e) => {
           </div>
         </div>
 
-        {/* Messages */}
         <div
           ref={messagesContainerRef}
           onScroll={handleScroll}
@@ -725,10 +740,7 @@ const handleSubmit = async (e) => {
                 )}
 
                 <div
-                  className={`max-w-[80%] px-5 py-3 rounded-2xl ${msg.role === "user"
-                      ? "bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20"
-                      : "bg-white/[0.04] backdrop-blur-sm text-slate-100 border border-white/5"
-                    }`}
+                  className={`max-w-[80%] px-5 py-3 rounded-2xl ${msg.role === "user" ? "bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20" : "bg-white/[0.04] backdrop-blur-sm text-slate-100 border border-white/5"}`}
                 >
                   {(!msg.messageType || msg.messageType === "text") && (
                     <div className="prose prose-invert max-w-none prose-sm">
@@ -804,36 +816,54 @@ const handleSubmit = async (e) => {
 
             <div ref={chatEndRef} />
 
-        {isTyping && typingMessage && (
-  <div className="flex justify-start">
-    <div className="max-w-[80%] px-5 py-3 rounded-2xl bg-white/[0.04] backdrop-blur-sm text-slate-100 border border-white/5">
-      <div className="prose prose-invert max-w-none prose-sm">
-        <ReactMarkdown>
-          {typingMessage}
-        </ReactMarkdown>
-      </div>
-      <div className="flex gap-1 mt-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.3s]"></span>
-        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.15s]"></span>
-        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce"></span>
-      </div>
-    </div>
-  </div>
-)}
+            {isTyping && typingMessage && (
+              <div className="flex justify-start">
+                <div className="max-w-[80%] px-5 py-3 rounded-2xl bg-white/[0.04] backdrop-blur-sm text-slate-100 border border-white/5">
+                  <div className="prose prose-invert max-w-none prose-sm">
+                    <ReactMarkdown>
+                      {typingMessage}
+                    </ReactMarkdown>
+                  </div>
+                  <div className="flex gap-1 mt-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce"></span>
+                  </div>
+                </div>
+              </div>
+            )}
 
-{isUploading && (
-  <div className="flex justify-start">
-    ...
-  </div>
-)}
+            {isUploading && (
+              <div className="flex justify-start">
+                <div className="bg-white/[0.04] backdrop-blur-sm px-4 py-3 rounded-xl text-slate-400 text-sm flex flex-col gap-2 min-w-[200px] border border-white/5">
+                  <div className="flex items-center gap-2">
+                    <i className="fa-solid fa-spinner fa-spin text-orange-400"></i>
+                    <span>Uploading...</span>
+                  </div>
+                  <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-orange-500 to-orange-600 transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-slate-500">{uploadProgress}%</span>
+                </div>
+              </div>
+            )}
 
-{isAiThinking && (
-  <div className="flex justify-start">
-    ...
-  </div>
-)}
+            {isAiThinking && (
+              <div className="flex justify-start">
+                <div className="bg-white/[0.04] backdrop-blur-sm px-4 py-2 rounded-xl text-slate-400 text-sm flex items-center gap-2 border border-white/5">
+                  <span className="flex gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce"></span>
+                  </span>
+                  Thinking...
+                </div>
+              </div>
+            )}
 
-            {/* Upgrade Card */}
             {showUpgradeCard && plan === 'free' && (
               <div className="max-w-3xl mx-auto mt-4 p-6 bg-gradient-to-r from-orange-500/10 to-orange-600/10 border border-orange-500/20 rounded-2xl">
                 <div className="text-center">
@@ -865,7 +895,6 @@ const handleSubmit = async (e) => {
           </div>
         </div>
 
-        {/* Input Area */}
         <div className="p-4 flex-shrink-0 relative border-t border-white/5">
           <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
             <div className="relative">
@@ -885,10 +914,7 @@ const handleSubmit = async (e) => {
                     <button
                       type="button"
                       onClick={() => setIsPlusMenuOpen(!isPlusMenuOpen)}
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all flex-shrink-0 ${isPlusMenuOpen || selectedMode
-                          ? 'bg-orange-500/20 text-orange-400'
-                          : 'text-slate-400 hover:text-white hover:bg-white/5'
-                        }`}
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all flex-shrink-0 ${isPlusMenuOpen || selectedMode ? 'bg-orange-500/20 text-orange-400' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
                     >
                       <i className={`fa-solid ${isPlusMenuOpen || selectedMode ? 'fa-xmark' : 'fa-plus'} text-lg`}></i>
                     </button>
@@ -981,8 +1007,7 @@ const handleSubmit = async (e) => {
                       type="text"
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      className={`w-full bg-transparent outline-none py-3 text-slate-100 placeholder-slate-500 text-sm ${selectedMode ? 'pl-[130px]' : 'pl-3'
-                        } ${isListening ? "placeholder-red-400" : ""}`}
+                      className={`w-full bg-transparent outline-none py-3 text-slate-100 placeholder-slate-500 text-sm ${selectedMode ? 'pl-[130px]' : 'pl-3'} ${isListening ? "placeholder-red-400" : ""}`}
                       placeholder={getModePlaceholder()}
                     />
                   </div>
