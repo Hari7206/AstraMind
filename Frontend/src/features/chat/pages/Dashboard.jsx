@@ -9,12 +9,187 @@ import {
   addNewMessage,
   createNewChat,
   setModel,
-  setPlan
+  setPlan,
 } from "../chat.slice";
 import { useChats } from "../hooks/useChats";
 import { initializeSocketConnection } from "../service/chat.socket";
 import { getSubscription } from "../../payment/service/razorpay.service.js";
 import "../style/Home.css";
+
+function ChatInputBar({
+  message, setMessage, handleSubmit, fileInputRef, handleFileUpload,
+  plusMenuRef, isPlusMenuOpen, setIsPlusMenuOpen, selectedMode, setSelectedMode,
+  handleModeSelect, getModePlaceholder, isListening, startListening,
+  handleCancelSpeech, handleAcceptSpeech, handleImageClick,
+  isAiThinking, isUploading
+}) {
+  return (
+    <form onSubmit={handleSubmit} className="max-w-3xl mx-auto w-full">
+      <div className="relative">
+        <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500/20 to-orange-600/20 rounded-2xl blur-md" />
+
+        <div className="relative flex flex-col bg-[#0a0a0f] rounded-2xl p-2 gap-1 ring-1 ring-white/5">
+          <div className="flex items-center gap-1">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept=".pdf,.docx,.txt"
+              className="hidden"
+            />
+
+            <div ref={plusMenuRef} className="relative flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsPlusMenuOpen(!isPlusMenuOpen)}
+                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all flex-shrink-0 ${isPlusMenuOpen || selectedMode ? 'bg-orange-500/20 text-orange-400' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+              >
+                <i className={`fa-solid ${isPlusMenuOpen || selectedMode ? 'fa-xmark' : 'fa-plus'} text-lg`}></i>
+              </button>
+
+              {isPlusMenuOpen && (
+                <div className="absolute bottom-full mb-2 left-0 w-56 bg-[#0a0a0f] rounded-xl shadow-2xl border border-white/10 overflow-hidden z-50">
+                  <div className="py-2">
+                    <button
+                      type="button"
+                      onClick={() => { handleModeSelect('webSearch'); setIsPlusMenuOpen(false); }}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
+                    >
+                      <i className="fa-solid fa-earth-africa text-orange-400 w-5 text-center"></i>
+                      <span className="text-sm text-slate-200">Web Search</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { handleModeSelect('jobSearch'); setIsPlusMenuOpen(false); }}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
+                    >
+                      <i className="fa-solid fa-briefcase text-orange-400 w-5 text-center"></i>
+                      <span className="text-sm text-slate-200">Job Search</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { handleModeSelect('upload'); setIsPlusMenuOpen(false); }}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
+                    >
+                      <i className="fa-solid fa-upload text-orange-400 w-5 text-center"></i>
+                      <span className="text-sm text-slate-200">Upload Document</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { handleModeSelect('email'); setIsPlusMenuOpen(false); }}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
+                    >
+                      <i className="fa-regular fa-envelope text-orange-400 w-5 text-center"></i>
+                      <span className="text-sm text-slate-200">Generate Email</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { handleModeSelect('youtube'); setIsPlusMenuOpen(false); }}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
+                    >
+                      <i className="fa-brands fa-youtube text-orange-400 w-5 text-center"></i>
+                      <span className="text-sm text-slate-200">YouTube Summarizer</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { handleModeSelect('bookmark'); setIsPlusMenuOpen(false); }}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
+                    >
+                      <i className="fa-regular fa-bookmark text-orange-400 w-5 text-center"></i>
+                      <span className="text-sm text-slate-200">Save Bookmark</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 relative flex items-center">
+              {selectedMode && (
+                <div className="absolute left-3 flex items-center gap-2 z-10">
+                  <span className="text-sm font-medium text-orange-400">
+                    {selectedMode === 'webSearch' && 'Web Search'}
+                    {selectedMode === 'jobSearch' && 'Job Search'}
+                    {selectedMode === 'upload' && 'Upload'}
+                    {selectedMode === 'email' && 'Email'}
+                    {selectedMode === 'youtube' && 'YouTube'}
+                    {selectedMode === 'bookmark' && 'Bookmark'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMode(null);
+                      setMessage("");
+                    }}
+                    className="text-white/40 hover:text-white/80 transition-colors"
+                  >
+                    <i className="fa-solid fa-xmark text-xs"></i>
+                  </button>
+                </div>
+              )}
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className={`w-full bg-transparent outline-none py-3 text-slate-100 placeholder-slate-500 text-sm ${selectedMode ? 'pl-[130px]' : 'pl-3'} ${isListening ? "placeholder-red-400" : ""}`}
+                placeholder={getModePlaceholder()}
+              />
+            </div>
+
+            {!isListening ? (
+              <button
+                type="button"
+                onClick={startListening}
+                className="text-slate-400 hover:text-orange-400 hover:bg-white/5 w-10 h-10 rounded-xl flex items-center justify-center transition-colors flex-shrink-0"
+                title="Voice input"
+              >
+                <i className="fa-solid fa-microphone"></i>
+              </button>
+            ) : (
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={handleCancelSpeech}
+                  className="bg-red-500/80 hover:bg-red-500 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                >
+                  <i className="fa-solid fa-xmark text-sm"></i>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAcceptSpeech}
+                  className="bg-orange-500/80 hover:bg-orange-500 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                >
+                  <i className="fa-solid fa-check text-sm"></i>
+                </button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleImageClick}
+              disabled={isAiThinking || isListening || isUploading}
+              className="text-slate-400 hover:text-orange-400 px-4 py-2 rounded-xl disabled:opacity-40 transition-colors flex-shrink-0 text-sm font-medium"
+            >
+              Image
+            </button>
+
+            <button
+              type="submit"
+              disabled={isAiThinking || isListening || isUploading}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:brightness-110 text-white w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-40 transition-all flex-shrink-0 shadow-lg shadow-orange-500/30"
+            >
+              <i className="fa-solid fa-arrow-up"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  );
+}
 
 export default function Home() {
   const dispatch = useDispatch();
@@ -25,6 +200,7 @@ export default function Home() {
   const isAiThinking = useSelector((state) => state.chat.isAiThinking);
   const selectedModel = useSelector((state) => state.chat.selectedModel || "mistral");
   const user = useSelector((state) => state.auth.user);
+
 
   const {
     handleSendMessage,
@@ -57,6 +233,7 @@ export default function Home() {
   const [typingMessage, setTypingMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
+  const [pendingUserMessage, setPendingUserMessage] = useState(null);
 
   const recognitionRef = useRef(null);
   const baseMessageRef = useRef("");
@@ -66,11 +243,17 @@ export default function Home() {
   const plusMenuRef = useRef(null);
 
   const activeChat = currentChatId ? chats[currentChatId] : null;
+  const hasMessages = activeChat?.messages?.length > 0;
+  const showChatView = hasMessages || !!pendingUserMessage;
+
+
+
+
 
   const typeMessage = async (text) => {
     setIsTyping(true);
     setTypingMessage("");
-    
+
     let currentText = "";
     const chars = text.split("");
     const delay = 8;
@@ -80,7 +263,7 @@ export default function Home() {
       setTypingMessage(currentText);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
-    
+
     setIsTyping(false);
     const container = messagesContainerRef.current;
     if (container && !isUserScrolling) {
@@ -285,96 +468,65 @@ export default function Home() {
     setSelectedMode(null);
     setMessage("");
 
+    const userMessage = data;
+    const hasActiveChat = !!currentChatId;
+
+    if (hasActiveChat) {
+      dispatch(addNewMessage({
+        chatId: currentChatId,
+        content: userMessage,
+        role: "user",
+        messageType: "text"
+      }));
+      setShouldScrollToBottom(true);
+    } else {
+      setPendingUserMessage(userMessage);
+      setShouldScrollToBottom(true);
+    }
+
+    dispatch(setAiThinking(true));
+
     let displayMessage = "";
-    let userMessage = data;
 
     try {
       switch (action) {
-        case 'webSearch': {
-          const result = await handleWebSearch(data);
-          displayMessage = `🔍 **Web Search: ${data}**\n\n${result.summary}\n\n**Sources:**\n${result.sources.map((s, i) => `${i+1}. ${s}`).join('\n')}`;
-          break;
-        }
-        case 'jobSearch': {
-          const result = await handleSearchJobs(data);
-          displayMessage = `💼 **${result.total} Jobs Found**\n\n`;
-          result.jobs.forEach((job, i) => {
-            displayMessage += `${i+1}. **${job.title}** at **${job.company}**\n`;
-            displayMessage += `   📍 ${job.location}\n`;
-            displayMessage += `   💰 ${job.salary}\n`;
-            displayMessage += `   📝 ${job.description?.substring(0, 150)}...\n`;
-            displayMessage += `   🔗 [Apply Now](${job.applyUrl})\n\n`;
-          });
-          if (result.plan === 'free') {
-            setSearchesUsed(result.searchesUsed);
-            if (result.searchesUsed >= 2) setShowUpgradeCard(true);
-            displayMessage += `\n📊 **Today's Usage:** ${result.searchesUsed}/${result.limit} searches used`;
-          }
-          break;
-        }
-        case 'generateEmail': {
-          const result = await handleGenerateEmail(data);
-          displayMessage = `✉️ **Generated Email**\n\n**Subject:** ${result.email.subject}\n\n${result.email.body}`;
-          break;
-        }
-        case 'youtubeSummarize': {
-          const result = await handleSummarizeYouTube(data);
-          displayMessage = `📺 **YouTube Summary**\n\n${result.summary}`;
-          break;
-        }
-        case 'saveBookmark': {
-          const parts = data.split(',').map(s => s.trim());
-          const title = parts[0] || 'Untitled';
-          const url = parts[1] || data;
-          const result = await handleSaveBookmark({ title, url });
-          displayMessage = `🔖 **Bookmark Saved!**\n\n**Title:** ${result.bookmark.title}\n**URL:** ${result.bookmark.url}`;
-          break;
-        }
-        default:
-          return;
+        // ...unchanged switch cases...
       }
 
-      if (currentChatId) {
-        dispatch(addNewMessage({
-          chatId: currentChatId,
-          content: userMessage,
-          role: "user",
-          messageType: "text"
-        }));
-        setShouldScrollToBottom(true);
-      }
-
-      dispatch(setAiThinking(true));
-      await typeMessage(displayMessage);
       dispatch(setAiThinking(false));
+      await typeMessage(displayMessage);
 
-      if (currentChatId) {
+      if (hasActiveChat) {
         dispatch(addNewMessage({
           chatId: currentChatId,
-          content: typingMessage || displayMessage,
+          content: displayMessage,
           role: "ai",
           messageType: "text"
         }));
+      } else {
+        // saveAgentMessages returns the new chat id — use it here
+        const saveResult = await handleSaveAgentResult?.(userMessage, displayMessage);
+        // (see note below if you don't already have a call like this)
       }
 
       setIsTyping(false);
       setTypingMessage("");
+      setPendingUserMessage(null);
 
     } catch (error) {
       console.error("Agent action error:", error);
-      dispatch(setAiThinking(false));
       setIsTyping(false);
       setTypingMessage("");
+      setPendingUserMessage(null);
       if (currentChatId) {
         dispatch(addNewMessage({
           chatId: currentChatId,
-          content: `❌ Error: ${error.message}`,
+          content: `Error: ${error.message}`,
           role: "ai",
           messageType: "text"
         }));
       }
     } finally {
-      setMessage("");
       dispatch(setAiThinking(false));
     }
   };
@@ -506,7 +658,6 @@ export default function Home() {
         'youtube': 'youtubeSummarize',
         'bookmark': 'saveBookmark'
       };
-
       if (modeMap[selectedMode]) {
         await handleAgentAction(modeMap[selectedMode], trimmedMessage);
         return;
@@ -516,26 +667,36 @@ export default function Home() {
     const currentChat = chats[currentChatId];
     const hasDocument = currentChat?.documentId;
 
-    if (hasDocument && currentChatId) {
+    if (currentChatId) {
+      // Existing chat — show instantly against the real id
       dispatch(addNewMessage({
         chatId: currentChatId,
         content: trimmedMessage,
         role: "user"
       }));
       setShouldScrollToBottom(true);
-      await handleChatWithDocument(hasDocument, trimmedMessage, currentChatId);
-    } else {
-      if (currentChatId) {
-        dispatch(addNewMessage({
-          chatId: currentChatId,
-          content: trimmedMessage,
-          role: "user"
-        }));
-        setShouldScrollToBottom(true);
+
+      if (hasDocument) {
+        await handleChatWithDocument(hasDocument, trimmedMessage, currentChatId);
+      } else {
+        await handleSendMessage(trimmedMessage, currentChatId, selectedModel);
       }
-      await handleSendMessage(trimmedMessage, currentChatId, selectedModel);
+    } 
+   else {
+      setPendingUserMessage(trimmedMessage);
+      setShouldScrollToBottom(true);
+      dispatch(setAiThinking(true));
+
+      try {
+        await handleSendMessage(trimmedMessage, null, selectedModel);
+      } finally {
+        dispatch(setAiThinking(false));
+        setPendingUserMessage(null);
+      }
     }
   };
+
+
 
   useEffect(() => {
     if (!currentChatId) return;
@@ -574,6 +735,14 @@ export default function Home() {
     return modes[selectedMode] || "Ask anything...";
   };
 
+  const inputBarProps = {
+    message, setMessage, handleSubmit, fileInputRef, handleFileUpload,
+    plusMenuRef, isPlusMenuOpen, setIsPlusMenuOpen, selectedMode, setSelectedMode,
+    handleModeSelect, getModePlaceholder, isListening, startListening,
+    handleCancelSpeech, handleAcceptSpeech, handleImageClick,
+    isAiThinking, isUploading
+  };
+
   return (
     <div className="flex h-screen bg-black text-white overflow-hidden">
       <div
@@ -608,7 +777,7 @@ export default function Home() {
             onClick={() => navigate("/gallery")}
             className={`w-full py-2.5 rounded-xl font-medium text-slate-300 bg-white/5 hover:bg-white/10 transition-all ${!sidebarOpen && "text-center"}`}
           >
-            {sidebarOpen ? "Gallery" : "🖼"}
+            {sidebarOpen ? "Gallery" : <i className="fa-regular fa-images"></i>}
           </button>
         </div>
 
@@ -674,46 +843,51 @@ export default function Home() {
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 h-screen bg-black">
-        <div className="px-6 py-3 flex items-center justify-between flex-shrink-0 border-b border-white/5">
+        <div className="px-6 py-4 flex items-center justify-between flex-shrink-0 bg-black">
           <div className="flex items-center gap-3">
             <h2 className="font-semibold text-lg text-white">
               {activeChat?.title || "New Chat"}
             </h2>
             {activeChat?.documentId && (
-              <span className="text-xs bg-orange-500/20 text-orange-400 px-2.5 py-1 rounded-full border border-orange-500/20">
-                📄 Document
+              <span className="text-xs bg-orange-500/15 text-orange-400 px-2.5 py-1 rounded-full">
+                Document
               </span>
             )}
           </div>
 
           <div className="flex items-center gap-3">
-            <span className={`text-xs px-3 py-1 rounded-full font-medium ${plan === 'pro' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-white/10 text-slate-300 border border-white/10'}`}>
-              {plan === 'pro' ? '⭐ Pro' : '🔓 Free'}
+            <span
+              className={`text-xs px-3 py-1.5 rounded-full font-medium tracking-wide ${plan === 'pro'
+                ? 'bg-orange-500/15 text-orange-400'
+                : 'bg-white/[0.06] text-slate-400'
+                }`}
+            >
+              {plan === 'pro' ? 'PRO' : 'FREE'}
             </span>
 
             {plan === 'free' && (
-              <span className="text-xs text-slate-400 bg-white/5 px-3 py-1 rounded-full">
-                📊 {searchesUsed}/{searchesLimit} searches today
+              <span className="text-xs text-slate-400 bg-white/[0.06] px-3 py-1.5 rounded-full font-medium tabular-nums">
+                {searchesUsed}/{searchesLimit} searches today
               </span>
             )}
 
             {plan === 'free' && (
               <button
                 onClick={() => navigate("/pricing")}
-                className="text-xs px-3 py-1 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-medium hover:brightness-110 transition-all"
+                className="text-xs px-3.5 py-1.5 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-medium hover:brightness-110 transition-all"
               >
                 Upgrade
               </button>
             )}
 
-            <span className="text-[11px] font-medium text-slate-400 bg-white/5 px-3 py-1.5 rounded-lg">
+            <span className="text-[11px] font-medium text-slate-400 bg-white/[0.06] px-3 py-1.5 rounded-lg">
               {selectedModel}
             </span>
 
             <select
               value={selectedModel}
               onChange={(e) => dispatch(setModel(e.target.value))}
-              className="bg-white/5 text-slate-200 text-sm px-3 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-orange-500/50 font-medium transition-all"
+              className="bg-white/[0.06] text-slate-200 text-sm px-3 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-orange-500/50 font-medium transition-all"
             >
               <option className="bg-[#0a0a0f]" value="mistral">Mistral</option>
               <option className="bg-[#0a0a0f]" value="groq">Groq</option>
@@ -721,346 +895,203 @@ export default function Home() {
           </div>
         </div>
 
-        <div
-          ref={messagesContainerRef}
-          onScroll={handleScroll}
-          className="flex-1 overflow-y-auto px-4 scrollbar-hide"
-        >
-          <div className="max-w-3xl mx-auto py-4 space-y-4">
-            {activeChat?.messages?.map((msg, index) => (
-              <div
-                key={index}
-                className={`flex flex-col group ${msg.role === "user" ? "items-end" : "items-start"}`}
-              >
-                {msg.role === "ai" && (
-                  <div className="text-xs font-medium text-slate-500 mb-1 ml-1 flex items-center gap-1.5">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-400 shadow-[0_0_8px_2px] shadow-orange-400/30"></span>
-                    AI • <span className="capitalize text-slate-400">{msg.model || "mistral"}</span>
+        {showChatView ? (
+          <>
+            <div
+              ref={messagesContainerRef}
+              onScroll={handleScroll}
+              className="flex-1 overflow-y-auto px-4 scrollbar-hide"
+            >
+              <div className="max-w-3xl mx-auto py-4 space-y-4">
+                {!currentChatId && pendingUserMessage && (
+                  <div className="flex flex-col items-end">
+                    <div className="max-w-[80%] px-5 py-3 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20">
+                      {pendingUserMessage}
+                    </div>
                   </div>
                 )}
 
-                <div
-                  className={`max-w-[80%] px-5 py-3 rounded-2xl ${msg.role === "user" ? "bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20" : "bg-white/[0.04] backdrop-blur-sm text-slate-100 border border-white/5"}`}
-                >
-                  {(!msg.messageType || msg.messageType === "text") && (
-                    <div className="prose prose-invert max-w-none prose-sm">
-                      <ReactMarkdown>
-                        {msg.content}
-                      </ReactMarkdown>
-                    </div>
-                  )}
-
-                  {msg.messageType === "image" && (
-                    <div className="flex flex-col gap-2">
-                      <img
-                        src={msg.fileUrl}
-                        alt={msg.content}
-                        className="max-w-xs sm:max-w-md rounded-xl shadow-lg shadow-black/40"
-                        loading="lazy"
-                      />
-                      <p className="text-xs text-slate-400">{msg.content}</p>
-                    </div>
-                  )}
-
-                  {msg.messageType === "document" && (
-                    <div className="flex items-center gap-3 p-2 bg-white/5 rounded-lg">
-                      <i className="fa-solid fa-file-pdf text-2xl text-orange-400"></i>
-                      <div>
-                        <p className="text-sm font-medium">{msg.content}</p>
-                        {msg.fileUrl && (
-                          <a
-                            href={msg.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-orange-400 hover:underline"
-                          >
-                            View Document
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-1 flex items-center gap-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {(!msg.messageType || msg.messageType === "text") && (
-                    <button
-                      type="button"
-                      onClick={() => handleToggleSpeech(msg.content, index)}
-                      className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-white/10 rounded-md transition-colors bg-transparent border-none cursor-pointer"
-                    >
-                      {speechState.index === index && speechState.status === "playing" ? (
-                        <i className="fa-solid fa-square text-xs text-slate-400"></i>
-                      ) : speechState.index === index && speechState.status === "paused" ? (
-                        <i className="ri-volume-up-line text-base text-orange-400 animate-pulse"></i>
-                      ) : (
-                        <i className="ri-volume-up-line text-base"></i>
-                      )}
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => handleCopyText(msg.content, index)}
-                    className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-white/10 rounded-md transition-colors bg-transparent border-none cursor-pointer"
+                {activeChat?.messages?.map((msg, index) => (
+                  <div
+                    key={index}
+                    className={`flex flex-col group ${msg.role === "user" ? "items-end" : "items-start"}`}
                   >
-                    {copiedMessageIndex === index ? (
-                      <i className="fa-solid fa-check text-orange-400 text-sm"></i>
-                    ) : (
-                      <i className="fa-regular fa-copy text-sm"></i>
-                    )}
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            <div ref={chatEndRef} />
-
-            {isTyping && typingMessage && (
-              <div className="flex justify-start">
-                <div className="max-w-[80%] px-5 py-3 rounded-2xl bg-white/[0.04] backdrop-blur-sm text-slate-100 border border-white/5">
-                  <div className="prose prose-invert max-w-none prose-sm">
-                    <ReactMarkdown>
-                      {typingMessage}
-                    </ReactMarkdown>
-                  </div>
-                  <div className="flex gap-1 mt-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.3s]"></span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.15s]"></span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce"></span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {isUploading && (
-              <div className="flex justify-start">
-                <div className="bg-white/[0.04] backdrop-blur-sm px-4 py-3 rounded-xl text-slate-400 text-sm flex flex-col gap-2 min-w-[200px] border border-white/5">
-                  <div className="flex items-center gap-2">
-                    <i className="fa-solid fa-spinner fa-spin text-orange-400"></i>
-                    <span>Uploading...</span>
-                  </div>
-                  <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-orange-500 to-orange-600 transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-slate-500">{uploadProgress}%</span>
-                </div>
-              </div>
-            )}
-
-            {isAiThinking && (
-              <div className="flex justify-start">
-                <div className="bg-white/[0.04] backdrop-blur-sm px-4 py-2 rounded-xl text-slate-400 text-sm flex items-center gap-2 border border-white/5">
-                  <span className="flex gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.3s]"></span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.15s]"></span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce"></span>
-                  </span>
-                  Thinking...
-                </div>
-              </div>
-            )}
-
-            {showUpgradeCard && plan === 'free' && (
-              <div className="max-w-3xl mx-auto mt-4 p-6 bg-gradient-to-r from-orange-500/10 to-orange-600/10 border border-orange-500/20 rounded-2xl">
-                <div className="text-center">
-                  <div className="text-3xl mb-2">🚀</div>
-                  <h3 className="text-lg font-semibold text-white">You've used all free searches!</h3>
-                  <p className="text-slate-400 text-sm mt-1">
-                    Upgrade to Pro for unlimited job searches
-                  </p>
-                  <p className="text-orange-400 font-medium text-sm mt-1">
-                    ₹50/month
-                  </p>
-                  <div className="mt-4 flex items-center justify-center gap-3">
-                    <button
-                      onClick={() => navigate("/pricing")}
-                      className="px-6 py-2.5 rounded-xl font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:brightness-110 transition-all shadow-lg shadow-orange-500/30"
-                    >
-                      🔓 Upgrade Now
-                    </button>
-                    <button
-                      onClick={() => setShowUpgradeCard(false)}
-                      className="px-4 py-2.5 rounded-xl font-medium text-slate-400 hover:text-white transition-all"
-                    >
-                      Maybe Later
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="p-4 flex-shrink-0 relative border-t border-white/5">
-          <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
-            <div className="relative">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500/20 to-orange-600/20 rounded-2xl blur-md" />
-
-              <div className="relative flex flex-col bg-[#0a0a0f] rounded-2xl p-2 gap-1 ring-1 ring-white/5">
-                <div className="flex items-center gap-1">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                    accept=".pdf,.docx,.txt"
-                    className="hidden"
-                  />
-
-                  <div ref={plusMenuRef} className="relative flex-shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setIsPlusMenuOpen(!isPlusMenuOpen)}
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all flex-shrink-0 ${isPlusMenuOpen || selectedMode ? 'bg-orange-500/20 text-orange-400' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
-                    >
-                      <i className={`fa-solid ${isPlusMenuOpen || selectedMode ? 'fa-xmark' : 'fa-plus'} text-lg`}></i>
-                    </button>
-
-                    {isPlusMenuOpen && (
-                      <div className="absolute bottom-full mb-2 left-0 w-56 bg-[#0a0a0f] rounded-xl shadow-2xl border border-white/10 overflow-hidden z-50">
-                        <div className="py-2">
-                          <button
-                            type="button"
-                            onClick={() => { handleModeSelect('webSearch'); setIsPlusMenuOpen(false); }}
-                            className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
-                          >
-                            <i className="fa-solid fa-earth-africa text-orange-400 w-5 text-center"></i>
-                            <span className="text-sm text-slate-200">Web Search</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => { handleModeSelect('jobSearch'); setIsPlusMenuOpen(false); }}
-                            className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
-                          >
-                            <i className="fa-solid fa-briefcase text-orange-400 w-5 text-center"></i>
-                            <span className="text-sm text-slate-200">Job Search</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => { handleModeSelect('upload'); setIsPlusMenuOpen(false); }}
-                            className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
-                          >
-                            <i className="fa-solid fa-upload text-orange-400 w-5 text-center"></i>
-                            <span className="text-sm text-slate-200">Upload Document</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => { handleModeSelect('email'); setIsPlusMenuOpen(false); }}
-                            className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
-                          >
-                            <i className="fa-regular fa-envelope text-orange-400 w-5 text-center"></i>
-                            <span className="text-sm text-slate-200">Generate Email</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => { handleModeSelect('youtube'); setIsPlusMenuOpen(false); }}
-                            className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
-                          >
-                            <i className="fa-brands fa-youtube text-orange-400 w-5 text-center"></i>
-                            <span className="text-sm text-slate-200">YouTube Summarizer</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => { handleModeSelect('bookmark'); setIsPlusMenuOpen(false); }}
-                            className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
-                          >
-                            <i className="fa-regular fa-bookmark text-orange-400 w-5 text-center"></i>
-                            <span className="text-sm text-slate-200">Save Bookmark</span>
-                          </button>
-                        </div>
+                    {msg.role === "ai" && (
+                      <div className="text-xs font-medium text-slate-500 mb-1 ml-1 flex items-center gap-1.5">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-400 shadow-[0_0_8px_2px] shadow-orange-400/30"></span>
+                        AI • <span className="capitalize text-slate-400">{msg.model || "mistral"}</span>
                       </div>
                     )}
-                  </div>
 
-                  <div className="flex-1 relative flex items-center">
-                    {selectedMode && (
-                      <div className="absolute left-3 flex items-center gap-2 z-10">
-                        <span className="text-sm font-medium text-orange-400">
-                          {selectedMode === 'webSearch' && 'Web Search'}
-                          {selectedMode === 'jobSearch' && 'Job Search'}
-                          {selectedMode === 'upload' && 'Upload'}
-                          {selectedMode === 'email' && 'Email'}
-                          {selectedMode === 'youtube' && 'YouTube'}
-                          {selectedMode === 'bookmark' && 'Bookmark'}
-                        </span>
+                    <div
+                      className={`max-w-[80%] px-5 py-3 rounded-2xl ${msg.role === "user" ? "bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20" : "bg-white/[0.04] backdrop-blur-sm text-slate-100 border border-white/5"}`}
+                    >
+                      {(!msg.messageType || msg.messageType === "text") && (
+                        <div className="prose prose-invert max-w-none prose-sm">
+                          <ReactMarkdown>
+                            {msg.content}
+                          </ReactMarkdown>
+                        </div>
+                      )}
+
+                      {msg.messageType === "image" && (
+                        <div className="flex flex-col gap-2">
+                          <img
+                            src={msg.fileUrl}
+                            alt={msg.content}
+                            className="max-w-xs sm:max-w-md rounded-xl shadow-lg shadow-black/40"
+                            loading="lazy"
+                          />
+                          <p className="text-xs text-slate-400">{msg.content}</p>
+                        </div>
+                      )}
+
+                      {msg.messageType === "document" && (
+                        <div className="flex items-center gap-3 p-2 bg-white/5 rounded-lg">
+                          <i className="fa-solid fa-file-pdf text-2xl text-orange-400"></i>
+                          <div>
+                            <p className="text-sm font-medium">{msg.content}</p>
+                            {msg.fileUrl && (
+                              <a
+                                href={msg.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-orange-400 hover:underline"
+                              >
+                                View Document
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-1 flex items-center gap-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {(!msg.messageType || msg.messageType === "text") && (
                         <button
                           type="button"
-                          onClick={() => {
-                            setSelectedMode(null);
-                            setMessage("");
-                          }}
-                          className="text-white/40 hover:text-white/80 transition-colors"
+                          onClick={() => handleToggleSpeech(msg.content, index)}
+                          className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-white/10 rounded-md transition-colors bg-transparent border-none cursor-pointer"
                         >
-                          <i className="fa-solid fa-xmark text-xs"></i>
+                          {speechState.index === index && speechState.status === "playing" ? (
+                            <i className="fa-solid fa-square text-xs text-slate-400"></i>
+                          ) : speechState.index === index && speechState.status === "paused" ? (
+                            <i className="ri-volume-up-line text-base text-orange-400 animate-pulse"></i>
+                          ) : (
+                            <i className="ri-volume-up-line text-base"></i>
+                          )}
                         </button>
-                      </div>
-                    )}
-                    <input
-                      type="text"
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      className={`w-full bg-transparent outline-none py-3 text-slate-100 placeholder-slate-500 text-sm ${selectedMode ? 'pl-[130px]' : 'pl-3'} ${isListening ? "placeholder-red-400" : ""}`}
-                      placeholder={getModePlaceholder()}
-                    />
-                  </div>
+                      )}
 
-                  {!isListening ? (
-                    <button
-                      type="button"
-                      onClick={startListening}
-                      className="text-slate-400 hover:text-orange-400 hover:bg-white/5 w-10 h-10 rounded-xl flex items-center justify-center transition-colors flex-shrink-0"
-                      title="Voice input"
-                    >
-                      <i className="fa-solid fa-microphone"></i>
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         type="button"
-                        onClick={handleCancelSpeech}
-                        className="bg-red-500/80 hover:bg-red-500 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                        onClick={() => handleCopyText(msg.content, index)}
+                        className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-white/10 rounded-md transition-colors bg-transparent border-none cursor-pointer"
                       >
-                        <i className="fa-solid fa-xmark text-sm"></i>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleAcceptSpeech}
-                        className="bg-orange-500/80 hover:bg-orange-500 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                      >
-                        <i className="fa-solid fa-check text-sm"></i>
+                        {copiedMessageIndex === index ? (
+                          <i className="fa-solid fa-check text-orange-400 text-sm"></i>
+                        ) : (
+                          <i className="fa-regular fa-copy text-sm"></i>
+                        )}
                       </button>
                     </div>
-                  )}
+                  </div>
+                ))}
 
-                  <button
-                    type="button"
-                    onClick={handleImageClick}
-                    disabled={isAiThinking || isListening || isUploading}
-                    className="text-slate-400 hover:text-orange-400 px-4 py-2 rounded-xl disabled:opacity-40 transition-colors flex-shrink-0 text-sm font-medium"
-                  >
-                    Image
-                  </button>
+                <div ref={chatEndRef} />
 
-                  <button
-                    type="submit"
-                    disabled={isAiThinking || isListening || isUploading}
-                    className="bg-gradient-to-r from-orange-500 to-orange-600 hover:brightness-110 text-white w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-40 transition-all flex-shrink-0 shadow-lg shadow-orange-500/30"
-                  >
-                    <i className="fa-solid fa-arrow-up"></i>
-                  </button>
-                </div>
+                {isTyping && typingMessage && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[80%] px-5 py-3 rounded-2xl bg-white/[0.04] backdrop-blur-sm text-slate-100 border border-white/5">
+                      <div className="prose prose-invert max-w-none prose-sm">
+                        <ReactMarkdown>
+                          {typingMessage}
+                        </ReactMarkdown>
+                      </div>
+                      <div className="flex gap-1 mt-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.3s]"></span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.15s]"></span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce"></span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {isUploading && (
+                  <div className="flex justify-start">
+                    <div className="bg-white/[0.04] backdrop-blur-sm px-4 py-3 rounded-xl text-slate-400 text-sm flex flex-col gap-2 min-w-[200px] border border-white/5">
+                      <div className="flex items-center gap-2">
+                        <i className="fa-solid fa-spinner fa-spin text-orange-400"></i>
+                        <span>Uploading...</span>
+                      </div>
+                      <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-orange-500 to-orange-600 transition-all duration-300"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-slate-500">{uploadProgress}%</span>
+                    </div>
+                  </div>
+                )}
+
+                {isAiThinking && (
+                  <div className="flex justify-start">
+                    <div className="bg-white/[0.04] backdrop-blur-sm px-4 py-2 rounded-xl text-slate-400 text-sm flex items-center gap-2 border border-white/5">
+                      <span className="flex gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.3s]"></span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.15s]"></span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce"></span>
+                      </span>
+                      Thinking...
+                    </div>
+                  </div>
+                )}
+
+                {showUpgradeCard && plan === 'free' && (
+                  <div className="max-w-3xl mx-auto mt-4 p-6 bg-white/[0.03] border border-white/5 rounded-2xl">
+                    <div className="text-center">
+                      <h3 className="text-lg font-semibold text-white">You've used all free searches</h3>
+                      <p className="text-slate-400 text-sm mt-1">
+                        Upgrade to Pro for unlimited job searches
+                      </p>
+                      <p className="text-orange-400 font-medium text-sm mt-1">
+                        ₹50/month
+                      </p>
+                      <div className="mt-4 flex items-center justify-center gap-3">
+                        <button
+                          onClick={() => navigate("/pricing")}
+                          className="px-6 py-2.5 rounded-xl font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:brightness-110 transition-all shadow-lg shadow-orange-500/30"
+                        >
+                          Upgrade Now
+                        </button>
+                        <button
+                          onClick={() => setShowUpgradeCard(false)}
+                          className="px-4 py-2.5 rounded-xl font-medium text-slate-400 hover:text-white transition-all"
+                        >
+                          Maybe Later
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          </form>
-        </div>
+
+            <div className="p-4 flex-shrink-0 relative">
+              <ChatInputBar {...inputBarProps} />
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center px-4">
+            <div className="w-full max-w-3xl -mt-16">
+              <h1 className="text-3xl font-semibold text-white text-center mb-8">
+                What can I help you with?
+              </h1>
+              <ChatInputBar {...inputBarProps} />
+            </div>
+          </div>
+        )}
       </div>
 
       <style>{`

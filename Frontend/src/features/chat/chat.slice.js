@@ -121,6 +121,16 @@ const chatSlice = createSlice({
         setPlan: (state, action) => {
             state.plan = action.payload;
         },
+        replaceChatId: (state, action) => {
+            const { tempId, realId } = action.payload;
+            if (state.chats[tempId] && !state.chats[realId]) {
+                state.chats[realId] = { ...state.chats[tempId], id: realId };
+                delete state.chats[tempId];
+            }
+            if (state.currentChatId === tempId) {
+                state.currentChatId = realId;
+            }
+        }
     }
 })
 
@@ -137,6 +147,7 @@ export const {
     setAiThinking,
     setModel,
     setPlan,
+    replaceChatId
 } = chatSlice.actions
 
 export default chatSlice.reducer
