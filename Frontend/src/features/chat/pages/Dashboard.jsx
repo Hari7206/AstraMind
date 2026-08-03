@@ -1,3 +1,4 @@
+// Home.jsx
 import { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -14,182 +15,14 @@ import {
 import { useChats } from "../hooks/useChats";
 import { initializeSocketConnection } from "../service/chat.socket";
 import { getSubscription } from "../../payment/service/razorpay.service.js";
-import "../style/Home.css";
+import "../style/Home.css"
 
-function ChatInputBar({
-  message, setMessage, handleSubmit, fileInputRef, handleFileUpload,
-  plusMenuRef, isPlusMenuOpen, setIsPlusMenuOpen, selectedMode, setSelectedMode,
-  handleModeSelect, getModePlaceholder, isListening, startListening,
-  handleCancelSpeech, handleAcceptSpeech, handleImageClick,
-  isAiThinking, isUploading
-}) {
-  return (
-    <form onSubmit={handleSubmit} className="max-w-3xl mx-auto w-full">
-      <div className="relative">
-        <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500/20 to-orange-600/20 rounded-2xl blur-md" />
+// Import components
+import Sidebar from "../component/Sidebar.jsx";
+import ChatInputBar from "../component/ChatInputBar.jsx";
 
-        <div className="relative flex flex-col bg-[#0a0a0f] rounded-2xl p-2 gap-1 ring-1 ring-white/5">
-          <div className="flex items-center gap-1">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              accept=".pdf,.docx,.txt"
-              className="hidden"
-            />
-
-            <div ref={plusMenuRef} className="relative flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsPlusMenuOpen(!isPlusMenuOpen)}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all flex-shrink-0 ${isPlusMenuOpen || selectedMode ? 'bg-orange-500/20 text-orange-400' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
-              >
-                <i className={`fa-solid ${isPlusMenuOpen || selectedMode ? 'fa-xmark' : 'fa-plus'} text-lg`}></i>
-              </button>
-
-              {isPlusMenuOpen && (
-                <div className="absolute bottom-full mb-2 left-0 w-56 bg-[#0a0a0f] rounded-xl shadow-2xl border border-white/10 overflow-hidden z-50">
-                  <div className="py-2">
-                    <button
-                      type="button"
-                      onClick={() => { handleModeSelect('webSearch'); setIsPlusMenuOpen(false); }}
-                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
-                    >
-                      <i className="fa-solid fa-earth-africa text-orange-400 w-5 text-center"></i>
-                      <span className="text-sm text-slate-200">Web Search</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => { handleModeSelect('jobSearch'); setIsPlusMenuOpen(false); }}
-                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
-                    >
-                      <i className="fa-solid fa-briefcase text-orange-400 w-5 text-center"></i>
-                      <span className="text-sm text-slate-200">Job Search</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => { handleModeSelect('upload'); setIsPlusMenuOpen(false); }}
-                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
-                    >
-                      <i className="fa-solid fa-upload text-orange-400 w-5 text-center"></i>
-                      <span className="text-sm text-slate-200">Upload Document</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => { handleModeSelect('email'); setIsPlusMenuOpen(false); }}
-                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
-                    >
-                      <i className="fa-regular fa-envelope text-orange-400 w-5 text-center"></i>
-                      <span className="text-sm text-slate-200">Generate Email</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => { handleModeSelect('youtube'); setIsPlusMenuOpen(false); }}
-                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
-                    >
-                      <i className="fa-brands fa-youtube text-orange-400 w-5 text-center"></i>
-                      <span className="text-sm text-slate-200">YouTube Summarizer</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => { handleModeSelect('bookmark'); setIsPlusMenuOpen(false); }}
-                      className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left"
-                    >
-                      <i className="fa-regular fa-bookmark text-orange-400 w-5 text-center"></i>
-                      <span className="text-sm text-slate-200">Save Bookmark</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex-1 relative flex items-center">
-              {selectedMode && (
-                <div className="absolute left-3 flex items-center gap-2 z-10">
-                  <span className="text-sm font-medium text-orange-400">
-                    {selectedMode === 'webSearch' && 'Web Search'}
-                    {selectedMode === 'jobSearch' && 'Job Search'}
-                    {selectedMode === 'upload' && 'Upload'}
-                    {selectedMode === 'email' && 'Email'}
-                    {selectedMode === 'youtube' && 'YouTube'}
-                    {selectedMode === 'bookmark' && 'Bookmark'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedMode(null);
-                      setMessage("");
-                    }}
-                    className="text-white/40 hover:text-white/80 transition-colors"
-                  >
-                    <i className="fa-solid fa-xmark text-xs"></i>
-                  </button>
-                </div>
-              )}
-              <input
-                type="text"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className={`w-full bg-transparent outline-none py-3 text-slate-100 placeholder-slate-500 text-sm ${selectedMode ? 'pl-[130px]' : 'pl-3'} ${isListening ? "placeholder-red-400" : ""}`}
-                placeholder={getModePlaceholder()}
-              />
-            </div>
-
-            {!isListening ? (
-              <button
-                type="button"
-                onClick={startListening}
-                className="text-slate-400 hover:text-orange-400 hover:bg-white/5 w-10 h-10 rounded-xl flex items-center justify-center transition-colors flex-shrink-0"
-                title="Voice input"
-              >
-                <i className="fa-solid fa-microphone"></i>
-              </button>
-            ) : (
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={handleCancelSpeech}
-                  className="bg-red-500/80 hover:bg-red-500 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                >
-                  <i className="fa-solid fa-xmark text-sm"></i>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAcceptSpeech}
-                  className="bg-orange-500/80 hover:bg-orange-500 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                >
-                  <i className="fa-solid fa-check text-sm"></i>
-                </button>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={handleImageClick}
-              disabled={isAiThinking || isListening || isUploading}
-              className="text-slate-400 hover:text-orange-400 px-4 py-2 rounded-xl disabled:opacity-40 transition-colors flex-shrink-0 text-sm font-medium"
-            >
-              Image
-            </button>
-
-            <button
-              type="submit"
-              disabled={isAiThinking || isListening || isUploading}
-              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:brightness-110 text-white w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-40 transition-all flex-shrink-0 shadow-lg shadow-orange-500/30"
-            >
-              <i className="fa-solid fa-arrow-up"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-    </form>
-  );
-}
+// Import custom hook
+import { useMessageHandling } from "../hooks/useMessageHandling";
 
 export default function Home() {
   const dispatch = useDispatch();
@@ -200,7 +33,6 @@ export default function Home() {
   const isAiThinking = useSelector((state) => state.chat.isAiThinking);
   const selectedModel = useSelector((state) => state.chat.selectedModel || "mistral");
   const user = useSelector((state) => state.auth.user);
-
 
   const {
     handleSendMessage,
@@ -217,15 +49,6 @@ export default function Home() {
   } = useChats();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [message, setMessage] = useState("");
-  const [copiedMessageIndex, setCopiedMessageIndex] = useState(null);
-  const [speechState, setSpeechState] = useState({ index: null, status: "stopped" });
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isListening, setIsListening] = useState(false);
-  const [isUserScrolling, setIsUserScrolling] = useState(false);
-  const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
-  const [selectedMode, setSelectedMode] = useState(null);
   const [plan, setPlanState] = useState("free");
   const [searchesUsed, setSearchesUsed] = useState(0);
   const [searchesLimit, setSearchesLimit] = useState(2);
@@ -234,22 +57,40 @@ export default function Home() {
   const [isTyping, setIsTyping] = useState(false);
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
   const [pendingUserMessage, setPendingUserMessage] = useState(null);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
 
-  const recognitionRef = useRef(null);
-  const baseMessageRef = useRef("");
   const chatEndRef = useRef(null);
-  const fileInputRef = useRef(null);
   const messagesContainerRef = useRef(null);
-  const plusMenuRef = useRef(null);
+
+  // Use the message handling hook
+  const {
+    message,
+    setMessage,
+    isListening,
+    selectedMode,
+    setSelectedMode,
+    isPlusMenuOpen,
+    setIsPlusMenuOpen,
+    isUploading,
+    uploadProgress,
+    copiedMessageIndex,
+    speechState,
+    fileInputRef,
+    plusMenuRef,
+    startListening,
+    handleCancelSpeech,
+    handleAcceptSpeech,
+    handleCopyText,
+    handleToggleSpeech,
+    handleModeSelect,
+    handleFileUpload: handleFileUploadHook,
+  } = useMessageHandling();
 
   const activeChat = currentChatId ? chats[currentChatId] : null;
   const hasMessages = activeChat?.messages?.length > 0;
   const showChatView = hasMessages || !!pendingUserMessage;
 
-
-
-
-
+  // Type message effect
   const typeMessage = async (text) => {
     setIsTyping(true);
     setTypingMessage("");
@@ -271,20 +112,12 @@ export default function Home() {
     }
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (plusMenuRef.current && !plusMenuRef.current.contains(event.target)) {
-        setIsPlusMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
+  // Load chats
   useEffect(() => {
     handleGetChats();
   }, [handleGetChats]);
 
+  // Fetch subscription
   useEffect(() => {
     const fetchSubscription = async () => {
       try {
@@ -303,6 +136,7 @@ export default function Home() {
     fetchSubscription();
   }, []);
 
+  // Scroll handling
   const handleScroll = () => {
     const container = messagesContainerRef.current;
     if (container) {
@@ -347,55 +181,24 @@ export default function Home() {
     };
   }, [currentChatId]);
 
+  // Socket connection
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+    if (!currentChatId) return;
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
+    const socket = initializeSocketConnection(
+      currentChatId,
+      dispatch,
+      { updateStreamingMessage, setAiThinking }
+    );
 
-    recognition.onresult = (event) => {
-      let interimTranscript = "";
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          baseMessageRef.current += event.results[i][0].transcript;
-        } else {
-          interimTranscript += event.results[i][0].transcript;
-        }
+    return () => {
+      if (socket && typeof socket.disconnect === "function") {
+        socket.disconnect();
       }
-      setMessage(baseMessageRef.current + interimTranscript);
     };
+  }, [currentChatId, dispatch]);
 
-    recognition.onerror = () => stopListening();
-    recognition.onend = () => setIsListening(false);
-
-    recognitionRef.current = recognition;
-  }, []);
-
-  const startListening = () => {
-    if (!recognitionRef.current) return;
-    baseMessageRef.current = message ? message + " " : "";
-    setIsListening(true);
-    recognitionRef.current.start();
-  };
-
-  const stopListening = () => {
-    if (!recognitionRef.current) return;
-    recognitionRef.current.stop();
-    setIsListening(false);
-  };
-
-  const handleCancelSpeech = () => {
-    if (!recognitionRef.current) return;
-    recognitionRef.current.stop();
-    setIsListening(false);
-    setMessage(baseMessageRef.current.trim());
-  };
-
-  const handleAcceptSpeech = () => stopListening();
-
+  // Handlers
   const handleNewChat = () => {
     dispatch(setCurrentChatId(null));
     setMessage("");
@@ -407,184 +210,6 @@ export default function Home() {
     dispatch(setCurrentChatId(chatId));
     await handleGetMessages(chatId);
     setIsPlusMenuOpen(false);
-  };
-
-  const handleCopyText = (text, index) => {
-    navigator.clipboard.writeText(text);
-    setCopiedMessageIndex(index);
-    setTimeout(() => setCopiedMessageIndex(null), 2000);
-  };
-
-  const handleToggleSpeech = (text, index) => {
-    const synth = window.speechSynthesis;
-    if (!synth) return;
-
-    if (speechState.index === index) {
-      if (speechState.status === "playing") {
-        synth.pause();
-        setSpeechState({ index, status: "paused" });
-      } else if (speechState.status === "paused") {
-        synth.resume();
-        setSpeechState({ index, status: "playing" });
-      } else {
-        startSpeaking(text, index, synth);
-      }
-    } else {
-      synth.cancel();
-      startSpeaking(text, index, synth);
-    }
-  };
-
-  const startSpeaking = (text, index, synth) => {
-    const cleanText = text.replace(/\[.*?\]\(.*?\)/g, "").trim();
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-
-    const voices = synth.getVoices();
-    const femaleVoice = voices.find(
-      (v) =>
-        v.name.toLowerCase().includes("female") ||
-        v.name.toLowerCase().includes("zira") ||
-        v.name.toLowerCase().includes("google uk english female") ||
-        v.name.toLowerCase().includes("natural")
-    );
-    if (femaleVoice) utterance.voice = femaleVoice;
-
-    utterance.onend = () => setSpeechState({ index: null, status: "stopped" });
-    utterance.onerror = () => setSpeechState({ index: null, status: "stopped" });
-
-    setSpeechState({ index, status: "playing" });
-    synth.speak(utterance);
-  };
-
-  const handleModeSelect = (mode) => {
-    setSelectedMode(mode);
-    setIsPlusMenuOpen(false);
-    if (mode === 'upload') {
-      fileInputRef.current?.click();
-    }
-  };
-
-  const handleAgentAction = async (action, data) => {
-    setSelectedMode(null);
-    setMessage("");
-
-    const userMessage = data;
-    const hasActiveChat = !!currentChatId;
-
-    if (hasActiveChat) {
-      dispatch(addNewMessage({
-        chatId: currentChatId,
-        content: userMessage,
-        role: "user",
-        messageType: "text"
-      }));
-      setShouldScrollToBottom(true);
-    } else {
-      setPendingUserMessage(userMessage);
-      setShouldScrollToBottom(true);
-    }
-
-    dispatch(setAiThinking(true));
-
-    let displayMessage = "";
-
-    try {
-      switch (action) {
-        // ...unchanged switch cases...
-      }
-
-      dispatch(setAiThinking(false));
-      await typeMessage(displayMessage);
-
-      if (hasActiveChat) {
-        dispatch(addNewMessage({
-          chatId: currentChatId,
-          content: displayMessage,
-          role: "ai",
-          messageType: "text"
-        }));
-      } else {
-        // saveAgentMessages returns the new chat id — use it here
-        const saveResult = await handleSaveAgentResult?.(userMessage, displayMessage);
-        // (see note below if you don't already have a call like this)
-      }
-
-      setIsTyping(false);
-      setTypingMessage("");
-      setPendingUserMessage(null);
-
-    } catch (error) {
-      console.error("Agent action error:", error);
-      setIsTyping(false);
-      setTypingMessage("");
-      setPendingUserMessage(null);
-      if (currentChatId) {
-        dispatch(addNewMessage({
-          chatId: currentChatId,
-          content: `Error: ${error.message}`,
-          role: "ai",
-          messageType: "text"
-        }));
-      }
-    } finally {
-      dispatch(setAiThinking(false));
-    }
-  };
-
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const allowedTypes = ["pdf", "docx", "txt"];
-    const fileExtension = file.name.split(".").pop().toLowerCase();
-    if (!allowedTypes.includes(fileExtension)) {
-      alert("Please upload PDF, DOCX, or TXT files only");
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      alert("File size must be less than 10MB");
-      return;
-    }
-
-    setIsUploading(true);
-    setUploadProgress(0);
-
-    try {
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 300);
-
-      const data = await handleUploadDocument(file, currentChatId);
-
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
-      if (data.success) {
-        setTimeout(() => {
-          setIsUploading(false);
-          setUploadProgress(0);
-        }, 500);
-      } else {
-        throw new Error(data.message || "Upload failed");
-      }
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert(`Upload failed: ${error.message}`);
-      setIsUploading(false);
-      setUploadProgress(0);
-    }
-
-    setSelectedMode(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
   };
 
   const handleImageClick = async () => {
@@ -642,6 +267,118 @@ export default function Home() {
     }
   };
 
+  const handleAgentAction = async (action, data) => {
+    setSelectedMode(null);
+    setMessage("");
+
+    const userMessage = data;
+    const hasActiveChat = !!currentChatId;
+
+    if (hasActiveChat) {
+      dispatch(addNewMessage({
+        chatId: currentChatId,
+        content: userMessage,
+        role: "user",
+        messageType: "text"
+      }));
+      setShouldScrollToBottom(true);
+    } else {
+      setPendingUserMessage(userMessage);
+      setShouldScrollToBottom(true);
+    }
+
+    dispatch(setAiThinking(true));
+
+    let displayMessage = "";
+
+    try {
+      switch (action) {
+        case 'webSearch': {
+          const searchResult = await handleWebSearch(userMessage);
+          displayMessage = searchResult;
+          break;
+        }
+        case 'jobSearch': {
+          const jobResult = await handleSearchJobs(userMessage);
+          displayMessage = jobResult;
+          break;
+        }
+        case 'generateEmail': {
+          const emailResult = await handleGenerateEmail(userMessage);
+          displayMessage = emailResult;
+          break;
+        }
+        case 'youtubeSummarize': {
+          const youtubeResult = await handleSummarizeYouTube(userMessage);
+          displayMessage = youtubeResult;
+          break;
+        }
+        case 'saveBookmark': {
+          const bookmarkResult = await handleSaveBookmark(userMessage);
+          displayMessage = bookmarkResult;
+          break;
+        }
+        default:
+          throw new Error('Unknown action');
+      }
+
+      dispatch(setAiThinking(false));
+      await typeMessage(displayMessage);
+
+      if (hasActiveChat) {
+        dispatch(addNewMessage({
+          chatId: currentChatId,
+          content: displayMessage,
+          role: "ai",
+          messageType: "text"
+        }));
+      } else {
+        // Create new chat with AI response
+        const newChatId = Date.now().toString();
+        dispatch(createNewChat({
+          chatId: newChatId,
+          title: userMessage.slice(0, 30) + (userMessage.length > 30 ? "..." : "")
+        }));
+        dispatch(setCurrentChatId(newChatId));
+        
+        // Add both user and AI messages
+        dispatch(addNewMessage({
+          chatId: newChatId,
+          content: userMessage,
+          role: "user",
+          messageType: "text"
+        }));
+        dispatch(addNewMessage({
+          chatId: newChatId,
+          content: displayMessage,
+          role: "ai",
+          messageType: "text"
+        }));
+        await handleGetChats();
+      }
+
+      setIsTyping(false);
+      setTypingMessage("");
+      setPendingUserMessage(null);
+
+    } catch (error) {
+      console.error("Agent action error:", error);
+      setIsTyping(false);
+      setTypingMessage("");
+      setPendingUserMessage(null);
+      if (currentChatId) {
+        dispatch(addNewMessage({
+          chatId: currentChatId,
+          content: `Error: ${error.message}`,
+          role: "ai",
+          messageType: "text"
+        }));
+      }
+    } finally {
+      dispatch(setAiThinking(false));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -668,7 +405,6 @@ export default function Home() {
     const hasDocument = currentChat?.documentId;
 
     if (currentChatId) {
-      // Existing chat — show instantly against the real id
       dispatch(addNewMessage({
         chatId: currentChatId,
         content: trimmedMessage,
@@ -681,8 +417,7 @@ export default function Home() {
       } else {
         await handleSendMessage(trimmedMessage, currentChatId, selectedModel);
       }
-    } 
-   else {
+    } else {
       setPendingUserMessage(trimmedMessage);
       setShouldScrollToBottom(true);
       dispatch(setAiThinking(true));
@@ -696,31 +431,8 @@ export default function Home() {
     }
   };
 
-
-
-  useEffect(() => {
-    if (!currentChatId) return;
-
-    const socket = initializeSocketConnection(
-      currentChatId,
-      dispatch,
-      { updateStreamingMessage, setAiThinking }
-    );
-
-    return () => {
-      if (socket && typeof socket.disconnect === "function") {
-        socket.disconnect();
-      }
-    };
-  }, [currentChatId, dispatch]);
-
-  const chatList = Object.values(chats).sort(
-    (a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated)
-  );
-
-  const getInitials = (name) => {
-    if (!name) return "?";
-    return name.charAt(0).toUpperCase();
+  const handleFileUpload = async (file) => {
+    await handleUploadDocument(file, currentChatId);
   };
 
   const getModePlaceholder = () => {
@@ -735,114 +447,29 @@ export default function Home() {
     return modes[selectedMode] || "Ask anything...";
   };
 
-  const inputBarProps = {
-    message, setMessage, handleSubmit, fileInputRef, handleFileUpload,
-    plusMenuRef, isPlusMenuOpen, setIsPlusMenuOpen, selectedMode, setSelectedMode,
-    handleModeSelect, getModePlaceholder, isListening, startListening,
-    handleCancelSpeech, handleAcceptSpeech, handleImageClick,
-    isAiThinking, isUploading
-  };
+  const chatList = Object.values(chats).sort(
+    (a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated)
+  );
 
   return (
     <div className="flex h-screen bg-black text-white overflow-hidden">
-      <div
-        className={`${sidebarOpen ? "w-72" : "w-16"} flex flex-col bg-[#0a0a0f] border-r border-white/5 transition-all duration-300 h-screen flex-shrink-0`}
-      >
-        <div className="p-4 flex justify-between items-center flex-shrink-0">
-          {sidebarOpen && (
-            <span className="font-semibold text-lg tracking-wide">
-              ASTRA<span className="text-orange-400">MIND</span>
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => setSidebarOpen((p) => !p)}
-            className="text-slate-500 hover:text-white transition-colors bg-transparent border-none cursor-pointer"
-          >
-            <i className="fa-solid fa-bars text-lg"></i>
-          </button>
-        </div>
+      {/* Sidebar */}
+      <Sidebar
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        chatList={chatList}
+        currentChatId={currentChatId}
+        handleNewChat={handleNewChat}
+        handleSelectChat={handleSelectChat}
+        user={user}
+        plan={plan}
+        searchesUsed={searchesUsed}
+        searchesLimit={searchesLimit}
+      />
 
-        <div className="px-3 pb-3 flex flex-col gap-2 flex-shrink-0">
-          <button
-            type="button"
-            onClick={handleNewChat}
-            className={`w-full py-2.5 rounded-xl font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 transition-all ${!sidebarOpen && "text-center"}`}
-          >
-            {sidebarOpen ? "New Chat" : "+"}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate("/gallery")}
-            className={`w-full py-2.5 rounded-xl font-medium text-slate-300 bg-white/5 hover:bg-white/10 transition-all ${!sidebarOpen && "text-center"}`}
-          >
-            {sidebarOpen ? "Gallery" : <i className="fa-regular fa-images"></i>}
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-2 pb-2 scrollbar-hide">
-          {sidebarOpen && (
-            <h2 className="text-slate-500 text-xs font-semibold uppercase tracking-wider px-2 mb-2">
-              Chats
-            </h2>
-          )}
-
-          <div className="space-y-1">
-            {chatList.map((chat) => {
-              const isActive = currentChatId === chat.id;
-              return (
-                <button
-                  key={chat.id}
-                  type="button"
-                  onClick={() => handleSelectChat(chat.id)}
-                  className={`relative w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all ${isActive ? "bg-orange-500/10 text-white border border-orange-500/20" : "text-slate-400 hover:text-slate-100 hover:bg-white/5"} ${!sidebarOpen && "flex justify-center"}`}
-                >
-                  {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-orange-500" />
-                  )}
-                  <span className={isActive ? "pl-2" : "pl-2"}>
-                    {sidebarOpen ? (chat.title || chat.id) : <i className="fa-solid fa-message"></i>}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="border-t border-white/5 p-3 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 flex items-center justify-center text-white font-semibold text-sm">
-              {getInitials(user?.username || user?.email || "U")}
-            </div>
-            {sidebarOpen && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-200 truncate">
-                  {user?.username || user?.email || "User"}
-                </p>
-                <p className="text-xs text-slate-500 truncate">
-                  {user?.email || ""}
-                </p>
-              </div>
-            )}
-            {sidebarOpen && (
-              <button
-                type="button"
-                onClick={() => {
-                  document.cookie = "token=; path=/; max-age=0";
-                  navigate("/login");
-                }}
-                className="text-slate-400 hover:text-white transition-colors"
-                title="Logout"
-              >
-                <i className="fa-solid fa-sign-out-alt"></i>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
+      {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 h-screen bg-black">
+        {/* Header */}
         <div className="px-6 py-4 flex items-center justify-between flex-shrink-0 bg-black">
           <div className="flex items-center gap-3">
             <h2 className="font-semibold text-lg text-white">
@@ -857,10 +484,11 @@ export default function Home() {
 
           <div className="flex items-center gap-3">
             <span
-              className={`text-xs px-3 py-1.5 rounded-full font-medium tracking-wide ${plan === 'pro'
-                ? 'bg-orange-500/15 text-orange-400'
-                : 'bg-white/[0.06] text-slate-400'
-                }`}
+              className={`text-xs px-3 py-1.5 rounded-full font-medium tracking-wide ${
+                plan === 'pro'
+                  ? 'bg-orange-500/15 text-orange-400'
+                  : 'bg-white/[0.06] text-slate-400'
+              }`}
             >
               {plan === 'pro' ? 'PRO' : 'FREE'}
             </span>
@@ -897,12 +525,14 @@ export default function Home() {
 
         {showChatView ? (
           <>
+            {/* Messages */}
             <div
               ref={messagesContainerRef}
               onScroll={handleScroll}
               className="flex-1 overflow-y-auto px-4 scrollbar-hide"
             >
               <div className="max-w-3xl mx-auto py-4 space-y-4">
+                {/* Show pending user message when no chat ID */}
                 {!currentChatId && pendingUserMessage && (
                   <div className="flex flex-col items-end">
                     <div className="max-w-[80%] px-5 py-3 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20">
@@ -911,6 +541,7 @@ export default function Home() {
                   </div>
                 )}
 
+                {/* Render all messages */}
                 {activeChat?.messages?.map((msg, index) => (
                   <div
                     key={index}
@@ -924,7 +555,11 @@ export default function Home() {
                     )}
 
                     <div
-                      className={`max-w-[80%] px-5 py-3 rounded-2xl ${msg.role === "user" ? "bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20" : "bg-white/[0.04] backdrop-blur-sm text-slate-100 border border-white/5"}`}
+                      className={`max-w-[80%] px-5 py-3 rounded-2xl ${
+                        msg.role === "user" 
+                          ? "bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20" 
+                          : "bg-white/[0.04] backdrop-blur-sm text-slate-100 border border-white/5"
+                      }`}
                     >
                       {(!msg.messageType || msg.messageType === "text") && (
                         <div className="prose prose-invert max-w-none prose-sm">
@@ -966,6 +601,7 @@ export default function Home() {
                       )}
                     </div>
 
+                    {/* Message actions (copy & speech) */}
                     <div className="mt-1 flex items-center gap-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {(!msg.messageType || msg.messageType === "text") && (
                         <button
@@ -1000,6 +636,7 @@ export default function Home() {
 
                 <div ref={chatEndRef} />
 
+                {/* Typing animation */}
                 {isTyping && typingMessage && (
                   <div className="flex justify-start">
                     <div className="max-w-[80%] px-5 py-3 rounded-2xl bg-white/[0.04] backdrop-blur-sm text-slate-100 border border-white/5">
@@ -1017,6 +654,7 @@ export default function Home() {
                   </div>
                 )}
 
+                {/* Upload progress */}
                 {isUploading && (
                   <div className="flex justify-start">
                     <div className="bg-white/[0.04] backdrop-blur-sm px-4 py-3 rounded-xl text-slate-400 text-sm flex flex-col gap-2 min-w-[200px] border border-white/5">
@@ -1035,7 +673,8 @@ export default function Home() {
                   </div>
                 )}
 
-                {isAiThinking && (
+                {/* AI Thinking indicator */}
+                {isAiThinking && !isTyping && (
                   <div className="flex justify-start">
                     <div className="bg-white/[0.04] backdrop-blur-sm px-4 py-2 rounded-xl text-slate-400 text-sm flex items-center gap-2 border border-white/5">
                       <span className="flex gap-1">
@@ -1048,6 +687,7 @@ export default function Home() {
                   </div>
                 )}
 
+                {/* Upgrade card */}
                 {showUpgradeCard && plan === 'free' && (
                   <div className="max-w-3xl mx-auto mt-4 p-6 bg-white/[0.03] border border-white/5 rounded-2xl">
                     <div className="text-center">
@@ -1078,8 +718,29 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Input Bar */}
             <div className="p-4 flex-shrink-0 relative">
-              <ChatInputBar {...inputBarProps} />
+              <ChatInputBar
+                message={message}
+                setMessage={setMessage}
+                handleSubmit={handleSubmit}
+                fileInputRef={fileInputRef}
+                handleFileUpload={(e) => handleFileUploadHook(e, handleFileUpload)}
+                plusMenuRef={plusMenuRef}
+                isPlusMenuOpen={isPlusMenuOpen}
+                setIsPlusMenuOpen={setIsPlusMenuOpen}
+                selectedMode={selectedMode}
+                setSelectedMode={setSelectedMode}
+                handleModeSelect={handleModeSelect}
+                getModePlaceholder={getModePlaceholder}
+                isListening={isListening}
+                startListening={startListening}
+                handleCancelSpeech={handleCancelSpeech}
+                handleAcceptSpeech={handleAcceptSpeech}
+                handleImageClick={handleImageClick}
+                isAiThinking={isAiThinking}
+                isUploading={isUploading}
+              />
             </div>
           </>
         ) : (
@@ -1088,7 +749,27 @@ export default function Home() {
               <h1 className="text-3xl font-semibold text-white text-center mb-8">
                 What can I help you with?
               </h1>
-              <ChatInputBar {...inputBarProps} />
+              <ChatInputBar
+                message={message}
+                setMessage={setMessage}
+                handleSubmit={handleSubmit}
+                fileInputRef={fileInputRef}
+                handleFileUpload={(e) => handleFileUploadHook(e, handleFileUpload)}
+                plusMenuRef={plusMenuRef}
+                isPlusMenuOpen={isPlusMenuOpen}
+                setIsPlusMenuOpen={setIsPlusMenuOpen}
+                selectedMode={selectedMode}
+                setSelectedMode={setSelectedMode}
+                handleModeSelect={handleModeSelect}
+                getModePlaceholder={getModePlaceholder}
+                isListening={isListening}
+                startListening={startListening}
+                handleCancelSpeech={handleCancelSpeech}
+                handleAcceptSpeech={handleAcceptSpeech}
+                handleImageClick={handleImageClick}
+                isAiThinking={isAiThinking}
+                isUploading={isUploading}
+              />
             </div>
           </div>
         )}
