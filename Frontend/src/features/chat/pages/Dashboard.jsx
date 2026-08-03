@@ -1,4 +1,4 @@
-// Home.jsx
+
 import { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -15,13 +15,10 @@ import {
 import { useChats } from "../hooks/useChats";
 import { initializeSocketConnection } from "../service/chat.socket";
 import { getSubscription } from "../../payment/service/razorpay.service.js";
-import "../style/Home.css"
+import "../style/Home.css";
 
-// Import components
 import Sidebar from "../component/Sidebar.jsx";
 import ChatInputBar from "../component/ChatInputBar.jsx";
-
-// Import custom hook
 import { useMessageHandling } from "../hooks/useMessageHandling";
 
 export default function Home() {
@@ -58,11 +55,11 @@ export default function Home() {
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
   const [pendingUserMessage, setPendingUserMessage] = useState(null);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const [isNewChat, setIsNewChat] = useState(true);
 
   const chatEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
 
-  // Use the message handling hook
   const {
     message,
     setMessage,
@@ -90,7 +87,29 @@ export default function Home() {
   const hasMessages = activeChat?.messages?.length > 0;
   const showChatView = hasMessages || !!pendingUserMessage;
 
-  // Type message effect
+  const handleNewChat = () => {
+    dispatch(setCurrentChatId(null));
+    setMessage("");
+    setSelectedMode(null);
+    setIsPlusMenuOpen(false);
+    setIsNewChat(true);
+  };
+
+  const handleSelectChat = async (chatId) => {
+    dispatch(setCurrentChatId(chatId));
+    await handleGetMessages(chatId);
+    setIsPlusMenuOpen(false);
+    setIsNewChat(false);
+  };
+
+  useEffect(() => {
+    if (!activeChat?.messages || activeChat.messages.length === 0) {
+      setIsNewChat(true);
+    } else {
+      setIsNewChat(false);
+    }
+  }, [activeChat]);
+
   const typeMessage = async (text) => {
     setIsTyping(true);
     setTypingMessage("");
@@ -112,12 +131,10 @@ export default function Home() {
     }
   };
 
-  // Load chats
   useEffect(() => {
     handleGetChats();
   }, [handleGetChats]);
 
-  // Fetch subscription
   useEffect(() => {
     const fetchSubscription = async () => {
       try {
@@ -136,7 +153,6 @@ export default function Home() {
     fetchSubscription();
   }, []);
 
-  // Scroll handling
   const handleScroll = () => {
     const container = messagesContainerRef.current;
     if (container) {
@@ -181,7 +197,6 @@ export default function Home() {
     };
   }, [currentChatId]);
 
-  // Socket connection
   useEffect(() => {
     if (!currentChatId) return;
 
@@ -197,20 +212,6 @@ export default function Home() {
       }
     };
   }, [currentChatId, dispatch]);
-
-  // Handlers
-  const handleNewChat = () => {
-    dispatch(setCurrentChatId(null));
-    setMessage("");
-    setSelectedMode(null);
-    setIsPlusMenuOpen(false);
-  };
-
-  const handleSelectChat = async (chatId) => {
-    dispatch(setCurrentChatId(chatId));
-    await handleGetMessages(chatId);
-    setIsPlusMenuOpen(false);
-  };
 
   const handleImageClick = async () => {
     const prompt = message.trim();
@@ -333,15 +334,13 @@ export default function Home() {
           messageType: "text"
         }));
       } else {
-        // Create new chat with AI response
         const newChatId = Date.now().toString();
         dispatch(createNewChat({
           chatId: newChatId,
           title: userMessage.slice(0, 30) + (userMessage.length > 30 ? "..." : "")
         }));
         dispatch(setCurrentChatId(newChatId));
-        
-        // Add both user and AI messages
+
         dispatch(addNewMessage({
           chatId: newChatId,
           content: userMessage,
@@ -453,7 +452,6 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-black text-white overflow-hidden">
-      {/* Sidebar */}
       <Sidebar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
@@ -467,10 +465,22 @@ export default function Home() {
         searchesLimit={searchesLimit}
       />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen bg-black">
-        {/* Header */}
-        <div className="px-6 py-4 flex items-center justify-between flex-shrink-0 bg-black">
+      <div className="flex-1 flex flex-col min-w-0 h-screen bg-black relative overflow-hidden">
+        {!showChatView && (
+          <div
+            className="pointer-events-none absolute inset-0 z-0 blur-3xl"
+            aria-hidden="true"
+            style={{
+              background: `
+                radial-gradient(ellipse 70% 60% at 50% 30%, rgba(249,115,22,0.3) 0%, rgba(249,115,22,0.1) 50%, transparent 80%),
+                radial-gradient(ellipse 50% 50% at 50% 50%, rgba(249,115,22,0.15) 0%, transparent 70%)
+              `,
+            }}
+          />
+        )}
+
+        {/* Header - Now absolutely positioned on top */}
+        <div className="absolute top-0 left-0 right-0 z-20 px-6 py-4 flex items-center justify-between bg-black/30 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <h2 className="font-semibold text-lg text-white">
               {activeChat?.title || "New Chat"}
@@ -484,11 +494,10 @@ export default function Home() {
 
           <div className="flex items-center gap-3">
             <span
-              className={`text-xs px-3 py-1.5 rounded-full font-medium tracking-wide ${
-                plan === 'pro'
+              className={`text-xs px-3 py-1.5 rounded-full font-medium tracking-wide ${plan === 'pro'
                   ? 'bg-orange-500/15 text-orange-400'
                   : 'bg-white/[0.06] text-slate-400'
-              }`}
+                }`}
             >
               {plan === 'pro' ? 'PRO' : 'FREE'}
             </span>
@@ -525,14 +534,12 @@ export default function Home() {
 
         {showChatView ? (
           <>
-            {/* Messages */}
             <div
               ref={messagesContainerRef}
               onScroll={handleScroll}
-              className="flex-1 overflow-y-auto px-4 scrollbar-hide"
+              className="flex-1 overflow-y-auto px-4 pt-20 scrollbar-hide"
             >
               <div className="max-w-3xl mx-auto py-4 space-y-4">
-                {/* Show pending user message when no chat ID */}
                 {!currentChatId && pendingUserMessage && (
                   <div className="flex flex-col items-end">
                     <div className="max-w-[80%] px-5 py-3 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20">
@@ -541,7 +548,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Render all messages */}
                 {activeChat?.messages?.map((msg, index) => (
                   <div
                     key={index}
@@ -555,11 +561,10 @@ export default function Home() {
                     )}
 
                     <div
-                      className={`max-w-[80%] px-5 py-3 rounded-2xl ${
-                        msg.role === "user" 
-                          ? "bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20" 
+                      className={`max-w-[80%] px-5 py-3 rounded-2xl ${msg.role === "user"
+                          ? "bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20"
                           : "bg-white/[0.04] backdrop-blur-sm text-slate-100 border border-white/5"
-                      }`}
+                        }`}
                     >
                       {(!msg.messageType || msg.messageType === "text") && (
                         <div className="prose prose-invert max-w-none prose-sm">
@@ -601,7 +606,6 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* Message actions (copy & speech) */}
                     <div className="mt-1 flex items-center gap-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {(!msg.messageType || msg.messageType === "text") && (
                         <button
@@ -636,7 +640,6 @@ export default function Home() {
 
                 <div ref={chatEndRef} />
 
-                {/* Typing animation */}
                 {isTyping && typingMessage && (
                   <div className="flex justify-start">
                     <div className="max-w-[80%] px-5 py-3 rounded-2xl bg-white/[0.04] backdrop-blur-sm text-slate-100 border border-white/5">
@@ -654,7 +657,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Upload progress */}
                 {isUploading && (
                   <div className="flex justify-start">
                     <div className="bg-white/[0.04] backdrop-blur-sm px-4 py-3 rounded-xl text-slate-400 text-sm flex flex-col gap-2 min-w-[200px] border border-white/5">
@@ -673,7 +675,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* AI Thinking indicator */}
                 {isAiThinking && !isTyping && (
                   <div className="flex justify-start">
                     <div className="bg-white/[0.04] backdrop-blur-sm px-4 py-2 rounded-xl text-slate-400 text-sm flex items-center gap-2 border border-white/5">
@@ -687,7 +688,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Upgrade card */}
                 {showUpgradeCard && plan === 'free' && (
                   <div className="max-w-3xl mx-auto mt-4 p-6 bg-white/[0.03] border border-white/5 rounded-2xl">
                     <div className="text-center">
@@ -718,7 +718,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Input Bar */}
             <div className="p-4 flex-shrink-0 relative">
               <ChatInputBar
                 message={message}
@@ -740,12 +739,13 @@ export default function Home() {
                 handleImageClick={handleImageClick}
                 isAiThinking={isAiThinking}
                 isUploading={isUploading}
+                isNewChat={isNewChat && !activeChat?.messages?.length}
               />
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center px-4">
-            <div className="w-full max-w-3xl -mt-16">
+          <div className="flex-1 flex flex-col items-center justify-center px-4 relative z-10">
+            <div className="w-full max-w-3xl -mt-8">
               <h1 className="text-3xl font-semibold text-white text-center mb-8">
                 What can I help you with?
               </h1>

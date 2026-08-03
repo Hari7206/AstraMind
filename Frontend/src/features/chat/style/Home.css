@@ -80,3 +80,27 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+
+@keyframes gentleGlow {
+  0% {
+    box-shadow: 0 0 20px 5px rgba(251, 146, 60, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 30px 15px rgba(251, 146, 60, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 20px 5px rgba(251, 146, 60, 0.1);
+  }
+}
+
+.glow-pulse {
+  animation: gentleGlow 3s ease-in-out infinite;
+  transition: all 0.3s ease;
+}
+
+.glow-pulse:hover {
+  animation: none;
+  box-shadow: 0 0 40px 20px rgba(251, 146, 60, 0.3);
+  transform: scale(1.02);
+}

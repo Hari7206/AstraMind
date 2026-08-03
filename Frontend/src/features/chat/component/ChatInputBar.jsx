@@ -20,12 +20,20 @@ export default function ChatInputBar({
   handleAcceptSpeech,
   handleImageClick,
   isAiThinking,
-  isUploading
+  isUploading,
+  isNewChat = false // Add this prop
 }) {
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl mx-auto w-full">
       <div className="relative">
-        <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500/20 to-orange-600/20 rounded-2xl blur-md" />
+        {/* Glowing border effect */}
+        <div 
+          className={`absolute -inset-0.5 rounded-2xl blur-md transition-all duration-500 ${
+            isNewChat 
+              ? 'bg-gradient-to-r from-orange-500/30 to-orange-600/30 animate-pulse' 
+              : 'bg-gradient-to-r from-orange-500/20 to-orange-600/20'
+          }`} 
+        />
 
         <div className="relative flex flex-col bg-[#0a0a0f] rounded-2xl p-2 gap-1 ring-1 ring-white/5">
           <div className="flex items-center gap-1">
@@ -147,10 +155,13 @@ export default function ChatInputBar({
               Image
             </button>
 
+            {/* Send Button with Glow Effect */}
             <button
               type="submit"
               disabled={isAiThinking || isListening || isUploading}
-              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:brightness-110 text-white w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-40 transition-all flex-shrink-0 shadow-lg shadow-orange-500/30"
+              className={`bg-gradient-to-r from-orange-500 to-orange-600 hover:brightness-110 text-white w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-40 transition-all flex-shrink-0 shadow-lg shadow-orange-500/30 ${
+                isNewChat ? 'glow-pulse' : ''
+              }`}
             >
               <i className="fa-solid fa-arrow-up"></i>
             </button>
