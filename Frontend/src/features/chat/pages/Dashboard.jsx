@@ -1,4 +1,4 @@
-
+// Home.jsx
 import { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +20,28 @@ import "../style/Home.css";
 import Sidebar from "../component/Sidebar.jsx";
 import ChatInputBar from "../component/ChatInputBar.jsx";
 import { useMessageHandling } from "../hooks/useMessageHandling";
+
+const markdownComponents = {
+  code({ inline, className, children, ...props }) {
+    if (inline) {
+      return (
+        <code
+          className="bg-white/10 text-orange-300 px-2 py-0.5 rounded text-[0.9em]"
+          {...props}
+        >
+          {children}
+        </code>
+      );
+    }
+    return (
+      <pre className="bg-[#0d0d12] border border-white/10 rounded-xl p-6 overflow-x-auto my-4">
+        <code className={`${className || ""} text-slate-200 text-lg leading-relaxed`} {...props}>
+          {children}
+        </code>
+      </pre>
+    );
+  },
+};
 
 export default function Home() {
   const dispatch = useDispatch();
@@ -56,6 +78,7 @@ export default function Home() {
   const [pendingUserMessage, setPendingUserMessage] = useState(null);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [isNewChat, setIsNewChat] = useState(true);
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
 
   const chatEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -93,13 +116,16 @@ export default function Home() {
     setSelectedMode(null);
     setIsPlusMenuOpen(false);
     setIsNewChat(true);
+    setIsLoadingChat(false);
   };
 
   const handleSelectChat = async (chatId) => {
+    setIsLoadingChat(true);
     dispatch(setCurrentChatId(chatId));
     await handleGetMessages(chatId);
     setIsPlusMenuOpen(false);
     setIsNewChat(false);
+    setIsLoadingChat(false);
   };
 
   useEffect(() => {
@@ -466,7 +492,7 @@ export default function Home() {
       />
 
       <div className="flex-1 flex flex-col min-w-0 h-screen bg-black relative overflow-hidden">
-        {!showChatView && (
+        {!showChatView && !isLoadingChat && (
           <div
             className="pointer-events-none absolute inset-0 z-0 blur-3xl"
             aria-hidden="true"
@@ -479,14 +505,13 @@ export default function Home() {
           />
         )}
 
-        {/* Header - Now absolutely positioned on top */}
         <div className="absolute top-0 left-0 right-0 z-20 px-6 py-4 flex items-center justify-between bg-black/30 backdrop-blur-md">
           <div className="flex items-center gap-3">
-            <h2 className="font-semibold text-lg text-white">
+            <h2 className="font-bold text-xl text-white">
               {activeChat?.title || "New Chat"}
             </h2>
             {activeChat?.documentId && (
-              <span className="text-xs bg-orange-500/15 text-orange-400 px-2.5 py-1 rounded-full">
+              <span className="text-sm bg-orange-500/15 text-orange-400 px-3 py-1 rounded-full">
                 Document
               </span>
             )}
@@ -494,7 +519,7 @@ export default function Home() {
 
           <div className="flex items-center gap-3">
             <span
-              className={`text-xs px-3 py-1.5 rounded-full font-medium tracking-wide ${plan === 'pro'
+              className={`text-sm px-3 py-1.5 rounded-full font-medium tracking-wide ${plan === 'pro'
                   ? 'bg-orange-500/15 text-orange-400'
                   : 'bg-white/[0.06] text-slate-400'
                 }`}
@@ -503,7 +528,7 @@ export default function Home() {
             </span>
 
             {plan === 'free' && (
-              <span className="text-xs text-slate-400 bg-white/[0.06] px-3 py-1.5 rounded-full font-medium tabular-nums">
+              <span className="text-sm text-slate-400 bg-white/[0.06] px-3 py-1.5 rounded-full font-medium tabular-nums">
                 {searchesUsed}/{searchesLimit} searches today
               </span>
             )}
@@ -511,13 +536,13 @@ export default function Home() {
             {plan === 'free' && (
               <button
                 onClick={() => navigate("/pricing")}
-                className="text-xs px-3.5 py-1.5 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-medium hover:brightness-110 transition-all"
+                className="text-sm px-3.5 py-1.5 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-medium hover:brightness-110 transition-all"
               >
                 Upgrade
               </button>
             )}
 
-            <span className="text-[11px] font-medium text-slate-400 bg-white/[0.06] px-3 py-1.5 rounded-lg">
+            <span className="text-sm font-medium text-slate-400 bg-white/[0.06] px-3 py-1.5 rounded-lg">
               {selectedModel}
             </span>
 
@@ -532,18 +557,25 @@ export default function Home() {
           </div>
         </div>
 
-        {showChatView ? (
+        {isLoadingChat ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-10 h-10 border-3 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
+              <span className="text-slate-400 text-base">Loading chat...</span>
+            </div>
+          </div>
+        ) : showChatView ? (
           <>
             <div
               ref={messagesContainerRef}
               onScroll={handleScroll}
               className="flex-1 overflow-y-auto px-4 pt-20 scrollbar-hide"
             >
-              <div className="max-w-3xl mx-auto py-4 space-y-4">
+              <div className="max-w-3xl mx-auto py-6 space-y-6">
                 {!currentChatId && pendingUserMessage && (
                   <div className="flex flex-col items-end">
-                    <div className="max-w-[80%] px-5 py-3 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20">
-                      {pendingUserMessage}
+                    <div className="max-w-[80%] px-4 py-3 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20">
+                      <p className="text-2xl leading-loose tracking-wide">{pendingUserMessage}</p>
                     </div>
                   </div>
                 )}
@@ -554,49 +586,50 @@ export default function Home() {
                     className={`flex flex-col group ${msg.role === "user" ? "items-end" : "items-start"}`}
                   >
                     {msg.role === "ai" && (
-                      <div className="text-xs font-medium text-slate-500 mb-1 ml-1 flex items-center gap-1.5">
-                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-400 shadow-[0_0_8px_2px] shadow-orange-400/30"></span>
+                      <div className="text-base font-medium text-slate-500 mb-2 ml-1 flex items-center gap-2">
+                        <span className="inline-block w-2 h-2 rounded-full bg-orange-400 shadow-[0_0_12px_4px] shadow-orange-400/30"></span>
                         AI • <span className="capitalize text-slate-400">{msg.model || "mistral"}</span>
                       </div>
                     )}
 
                     <div
-                      className={`max-w-[80%] px-5 py-3 rounded-2xl ${msg.role === "user"
-                          ? "bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20"
-                          : "bg-white/[0.04] backdrop-blur-sm text-slate-100 border border-white/5"
-                        }`}
+                      className={
+                        msg.role === "user"
+                          ? "max-w-[80%] px-4 py-3 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20"
+                          : "w-full px-4 py-3 text-slate-100"
+                      }
                     >
                       {(!msg.messageType || msg.messageType === "text") && (
-                        <div className="prose prose-invert max-w-none prose-sm">
-                          <ReactMarkdown>
+                        <div className="prose prose-invert max-w-none prose-2xl leading-relaxed tracking-wide">
+                          <ReactMarkdown components={markdownComponents}>
                             {msg.content}
                           </ReactMarkdown>
                         </div>
                       )}
 
                       {msg.messageType === "image" && (
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-3">
                           <img
                             src={msg.fileUrl}
                             alt={msg.content}
                             className="max-w-xs sm:max-w-md rounded-xl shadow-lg shadow-black/40"
                             loading="lazy"
                           />
-                          <p className="text-xs text-slate-400">{msg.content}</p>
+                          <p className="text-base text-slate-400">{msg.content}</p>
                         </div>
                       )}
 
                       {msg.messageType === "document" && (
-                        <div className="flex items-center gap-3 p-2 bg-white/5 rounded-lg">
-                          <i className="fa-solid fa-file-pdf text-2xl text-orange-400"></i>
+                        <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
+                          <i className="fa-solid fa-file-pdf text-3xl text-orange-400"></i>
                           <div>
-                            <p className="text-sm font-medium">{msg.content}</p>
+                            <p className="text-base font-medium">{msg.content}</p>
                             {msg.fileUrl && (
                               <a
                                 href={msg.fileUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs text-orange-400 hover:underline"
+                                className="text-base text-orange-400 hover:underline"
                               >
                                 View Document
                               </a>
@@ -606,19 +639,19 @@ export default function Home() {
                       )}
                     </div>
 
-                    <div className="mt-1 flex items-center gap-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="mt-2 flex items-center gap-2 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {(!msg.messageType || msg.messageType === "text") && (
                         <button
                           type="button"
                           onClick={() => handleToggleSpeech(msg.content, index)}
-                          className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-white/10 rounded-md transition-colors bg-transparent border-none cursor-pointer"
+                          className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-white/10 rounded-md transition-colors bg-transparent border-none cursor-pointer"
                         >
                           {speechState.index === index && speechState.status === "playing" ? (
-                            <i className="fa-solid fa-square text-xs text-slate-400"></i>
+                            <i className="fa-solid fa-square text-sm text-slate-400"></i>
                           ) : speechState.index === index && speechState.status === "paused" ? (
-                            <i className="ri-volume-up-line text-base text-orange-400 animate-pulse"></i>
+                            <i className="ri-volume-up-line text-lg text-orange-400 animate-pulse"></i>
                           ) : (
-                            <i className="ri-volume-up-line text-base"></i>
+                            <i className="ri-volume-up-line text-lg"></i>
                           )}
                         </button>
                       )}
@@ -626,12 +659,12 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => handleCopyText(msg.content, index)}
-                        className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-white/10 rounded-md transition-colors bg-transparent border-none cursor-pointer"
+                        className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-white/10 rounded-md transition-colors bg-transparent border-none cursor-pointer"
                       >
                         {copiedMessageIndex === index ? (
-                          <i className="fa-solid fa-check text-orange-400 text-sm"></i>
+                          <i className="fa-solid fa-check text-orange-400 text-base"></i>
                         ) : (
-                          <i className="fa-regular fa-copy text-sm"></i>
+                          <i className="fa-regular fa-copy text-base"></i>
                         )}
                       </button>
                     </div>
@@ -642,16 +675,16 @@ export default function Home() {
 
                 {isTyping && typingMessage && (
                   <div className="flex justify-start">
-                    <div className="max-w-[80%] px-5 py-3 rounded-2xl bg-white/[0.04] backdrop-blur-sm text-slate-100 border border-white/5">
-                      <div className="prose prose-invert max-w-none prose-sm">
-                        <ReactMarkdown>
+                    <div className="w-full px-4 py-3 text-slate-100">
+                      <div className="prose prose-invert max-w-none prose-2xl leading-relaxed tracking-wide">
+                        <ReactMarkdown components={markdownComponents}>
                           {typingMessage}
                         </ReactMarkdown>
                       </div>
-                      <div className="flex gap-1 mt-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.3s]"></span>
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.15s]"></span>
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce"></span>
+                      <div className="flex gap-1.5 mt-2">
+                        <span className="w-2 h-2 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.3s]"></span>
+                        <span className="w-2 h-2 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.15s]"></span>
+                        <span className="w-2 h-2 rounded-full bg-orange-400 animate-bounce"></span>
                       </div>
                     </div>
                   </div>
@@ -659,29 +692,29 @@ export default function Home() {
 
                 {isUploading && (
                   <div className="flex justify-start">
-                    <div className="bg-white/[0.04] backdrop-blur-sm px-4 py-3 rounded-xl text-slate-400 text-sm flex flex-col gap-2 min-w-[200px] border border-white/5">
-                      <div className="flex items-center gap-2">
-                        <i className="fa-solid fa-spinner fa-spin text-orange-400"></i>
+                    <div className="bg-white/[0.04] backdrop-blur-sm px-6 py-4 rounded-xl text-slate-400 text-base flex flex-col gap-3 min-w-[200px] border border-white/5">
+                      <div className="flex items-center gap-3">
+                        <i className="fa-solid fa-spinner fa-spin text-orange-400 text-lg"></i>
                         <span>Uploading...</span>
                       </div>
-                      <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-orange-500 to-orange-600 transition-all duration-300"
                           style={{ width: `${uploadProgress}%` }}
                         />
                       </div>
-                      <span className="text-xs text-slate-500">{uploadProgress}%</span>
+                      <span className="text-sm text-slate-500">{uploadProgress}%</span>
                     </div>
                   </div>
                 )}
 
                 {isAiThinking && !isTyping && (
                   <div className="flex justify-start">
-                    <div className="bg-white/[0.04] backdrop-blur-sm px-4 py-2 rounded-xl text-slate-400 text-sm flex items-center gap-2 border border-white/5">
-                      <span className="flex gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.3s]"></span>
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.15s]"></span>
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce"></span>
+                    <div className="bg-white/[0.04] backdrop-blur-sm px-5 py-3 rounded-xl text-slate-400 text-base flex items-center gap-3 border border-white/5">
+                      <span className="flex gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.3s]"></span>
+                        <span className="w-2 h-2 rounded-full bg-orange-400 animate-bounce [animation-delay:-0.15s]"></span>
+                        <span className="w-2 h-2 rounded-full bg-orange-400 animate-bounce"></span>
                       </span>
                       Thinking...
                     </div>
@@ -689,25 +722,25 @@ export default function Home() {
                 )}
 
                 {showUpgradeCard && plan === 'free' && (
-                  <div className="max-w-3xl mx-auto mt-4 p-6 bg-white/[0.03] border border-white/5 rounded-2xl">
+                  <div className="max-w-3xl mx-auto mt-6 p-8 bg-white/[0.03] border border-white/5 rounded-2xl">
                     <div className="text-center">
-                      <h3 className="text-lg font-semibold text-white">You've used all free searches</h3>
-                      <p className="text-slate-400 text-sm mt-1">
+                      <h3 className="text-xl font-semibold text-white">You've used all free searches</h3>
+                      <p className="text-slate-400 text-base mt-2">
                         Upgrade to Pro for unlimited job searches
                       </p>
-                      <p className="text-orange-400 font-medium text-sm mt-1">
+                      <p className="text-orange-400 font-medium text-base mt-2">
                         ₹50/month
                       </p>
-                      <div className="mt-4 flex items-center justify-center gap-3">
+                      <div className="mt-6 flex items-center justify-center gap-4">
                         <button
                           onClick={() => navigate("/pricing")}
-                          className="px-6 py-2.5 rounded-xl font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:brightness-110 transition-all shadow-lg shadow-orange-500/30"
+                          className="px-8 py-3 rounded-xl font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:brightness-110 transition-all shadow-lg shadow-orange-500/30"
                         >
                           Upgrade Now
                         </button>
                         <button
                           onClick={() => setShowUpgradeCard(false)}
-                          className="px-4 py-2.5 rounded-xl font-medium text-slate-400 hover:text-white transition-all"
+                          className="px-6 py-3 rounded-xl font-medium text-slate-400 hover:text-white transition-all"
                         >
                           Maybe Later
                         </button>
@@ -746,7 +779,7 @@ export default function Home() {
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center px-4 relative z-10">
             <div className="w-full max-w-3xl -mt-8">
-              <h1 className="text-3xl font-semibold text-white text-center mb-8">
+              <h1 className="text-5xl font-bold text-white text-center mb-8">
                 What can I help you with?
               </h1>
               <ChatInputBar
