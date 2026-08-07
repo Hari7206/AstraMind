@@ -52,6 +52,7 @@ export default function Home() {
   const isAiThinking = useSelector((state) => state.chat.isAiThinking);
   const selectedModel = useSelector((state) => state.chat.selectedModel || "mistral");
   const user = useSelector((state) => state.auth.user);
+  const [isUserLoading, setIsUserLoading] = useState(true);
 
   const {
     handleSendMessage,
@@ -178,6 +179,12 @@ export default function Home() {
     };
     fetchSubscription();
   }, []);
+
+  useEffect(() => {
+    if (user !== null && user !== undefined) {
+      setIsUserLoading(false);
+    }
+  }, [user]);
 
   const handleScroll = () => {
     const container = messagesContainerRef.current;
@@ -475,6 +482,17 @@ export default function Home() {
   const chatList = Object.values(chats).sort(
     (a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated)
   );
+
+  if (isUserLoading) {
+    return (
+      <div className="flex h-screen bg-black text-white items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-3 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
+          <span className="text-slate-400 text-lg">Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-black text-white overflow-hidden">
@@ -779,7 +797,7 @@ export default function Home() {
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center px-4 relative z-10">
             <div className="w-full max-w-3xl -mt-8">
-              <h1 className="text-5xl font-bold text-white text-center mb-8">
+              <h1 className="text-3xl font-semibold text-white text-center mb-8">
                 What can I help you with?
               </h1>
               <ChatInputBar
