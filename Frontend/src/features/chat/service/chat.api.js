@@ -113,10 +113,33 @@ export const summarizeYouTube = async (url) => {
 };
 
 export const saveBookmark = async (data) => {
-  const response = await api.post("/api/agent/bookmarks", data);
+  // If data is a string, parse it into an object
+  let payload = data;
+  
+  if (typeof data === 'string') {
+    const parts = data.split(',').map(s => s.trim());
+    
+    if (parts.length >= 2) {
+      payload = {
+        title: parts[0],
+        url: parts[1],
+        description: parts.length > 2 ? parts.slice(2).join(', ') : '',
+        tags: []
+      };
+    } else {
+      // If only URL is provided, use URL as title
+      payload = {
+        title: parts[0] || data,
+        url: data,
+        description: '',
+        tags: []
+      };
+    }
+  }
+  
+  const response = await api.post("/api/agent/bookmarks", payload);
   return response.data;
 };
-
 export const getBookmarks = async () => {
   const response = await api.get("/api/agent/bookmarks");
   return response.data;

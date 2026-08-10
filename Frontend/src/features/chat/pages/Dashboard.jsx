@@ -1,4 +1,3 @@
-// Home.jsx
 import { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -181,7 +180,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (user !== null && user !== undefined) {
+    if (user && (user.username || user.email)) {
       setIsUserLoading(false);
     }
   }, [user]);
@@ -301,115 +300,128 @@ export default function Home() {
     }
   };
 
-  const handleAgentAction = async (action, data) => {
-    setSelectedMode(null);
-    setMessage("");
+const handleAgentAction = async (action, data) => {
+  setSelectedMode(null);
+  setMessage("");
 
-    const userMessage = data;
-    const hasActiveChat = !!currentChatId;
+  const userMessage = data;
+  const hasActiveChat = !!currentChatId;
+
+  if (hasActiveChat) {
+    dispatch(addNewMessage({
+      chatId: currentChatId,
+      content: userMessage,
+      role: "user",
+      messageType: "text"
+    }));
+    setShouldScrollToBottom(true);
+  } else {
+    setPendingUserMessage(userMessage);
+    setShouldScrollToBottom(true);
+  }
+
+  dispatch(setAiThinking(true));
+
+  let displayMessage = "";
+
+  try {
+    switch (action) {
+      case 'webSearch': {
+        const searchResult = await handleWebSearch(userMessage);
+        // Extract the summary string from the response
+        displayMessage = typeof searchResult === 'string' 
+          ? searchResult 
+          : searchResult?.summary || searchResult?.message || JSON.stringify(searchResult);
+        break;
+      }
+      case 'jobSearch': {
+        const jobResult = await handleSearchJobs(userMessage);
+        displayMessage = typeof jobResult === 'string'
+          ? jobResult
+          : jobResult?.message || jobResult?.summary || JSON.stringify(jobResult);
+        break;
+      }
+      case 'generateEmail': {
+        const emailResult = await handleGenerateEmail(userMessage);
+        displayMessage = typeof emailResult === 'string'
+          ? emailResult
+          : emailResult?.email?.body || emailResult?.message || JSON.stringify(emailResult);
+        break;
+      }
+      case 'youtubeSummarize': {
+        const youtubeResult = await handleSummarizeYouTube(userMessage);
+        displayMessage = typeof youtubeResult === 'string'
+          ? youtubeResult
+          : youtubeResult?.summary || youtubeResult?.message || JSON.stringify(youtubeResult);
+        break;
+      }
+      case 'saveBookmark': {
+        const bookmarkResult = await handleSaveBookmark(userMessage);
+        if (bookmarkResult.success) {
+          displayMessage = bookmarkResult.message;
+        } else {
+          displayMessage = bookmarkResult.message || "Failed to save bookmark. Please use format: Title, URL (e.g., Google, https://google.com)";
+        }
+        break;
+      }
+      default:
+        throw new Error('Unknown action');
+    }
+
+    dispatch(setAiThinking(false));
+    await typeMessage(displayMessage);
 
     if (hasActiveChat) {
       dispatch(addNewMessage({
         chatId: currentChatId,
+        content: displayMessage,
+        role: "ai",
+        messageType: "text"
+      }));
+    } else {
+      const newChatId = Date.now().toString();
+      dispatch(createNewChat({
+        chatId: newChatId,
+        title: userMessage.slice(0, 30) + (userMessage.length > 30 ? "..." : "")
+      }));
+      dispatch(setCurrentChatId(newChatId));
+
+      dispatch(addNewMessage({
+        chatId: newChatId,
         content: userMessage,
         role: "user",
         messageType: "text"
       }));
-      setShouldScrollToBottom(true);
-    } else {
-      setPendingUserMessage(userMessage);
-      setShouldScrollToBottom(true);
+      dispatch(addNewMessage({
+        chatId: newChatId,
+        content: displayMessage,
+        role: "ai",
+        messageType: "text"
+      }));
+      await handleGetChats();
     }
 
-    dispatch(setAiThinking(true));
+    setIsTyping(false);
+    setTypingMessage("");
+    setPendingUserMessage(null);
 
-    let displayMessage = "";
-
-    try {
-      switch (action) {
-        case 'webSearch': {
-          const searchResult = await handleWebSearch(userMessage);
-          displayMessage = searchResult;
-          break;
-        }
-        case 'jobSearch': {
-          const jobResult = await handleSearchJobs(userMessage);
-          displayMessage = jobResult;
-          break;
-        }
-        case 'generateEmail': {
-          const emailResult = await handleGenerateEmail(userMessage);
-          displayMessage = emailResult;
-          break;
-        }
-        case 'youtubeSummarize': {
-          const youtubeResult = await handleSummarizeYouTube(userMessage);
-          displayMessage = youtubeResult;
-          break;
-        }
-        case 'saveBookmark': {
-          const bookmarkResult = await handleSaveBookmark(userMessage);
-          displayMessage = bookmarkResult;
-          break;
-        }
-        default:
-          throw new Error('Unknown action');
-      }
-
-      dispatch(setAiThinking(false));
-      await typeMessage(displayMessage);
-
-      if (hasActiveChat) {
-        dispatch(addNewMessage({
-          chatId: currentChatId,
-          content: displayMessage,
-          role: "ai",
-          messageType: "text"
-        }));
-      } else {
-        const newChatId = Date.now().toString();
-        dispatch(createNewChat({
-          chatId: newChatId,
-          title: userMessage.slice(0, 30) + (userMessage.length > 30 ? "..." : "")
-        }));
-        dispatch(setCurrentChatId(newChatId));
-
-        dispatch(addNewMessage({
-          chatId: newChatId,
-          content: userMessage,
-          role: "user",
-          messageType: "text"
-        }));
-        dispatch(addNewMessage({
-          chatId: newChatId,
-          content: displayMessage,
-          role: "ai",
-          messageType: "text"
-        }));
-        await handleGetChats();
-      }
-
-      setIsTyping(false);
-      setTypingMessage("");
-      setPendingUserMessage(null);
-
-    } catch (error) {
-      console.error("Agent action error:", error);
-      setIsTyping(false);
-      setTypingMessage("");
-      setPendingUserMessage(null);
-      if (currentChatId) {
-        dispatch(addNewMessage({
-          chatId: currentChatId,
-          content: `Error: ${error.message}`,
-          role: "ai",
-          messageType: "text"
-        }));
-      }
-    } finally {
-      dispatch(setAiThinking(false));
+  } catch (error) {
+    console.error("Agent action error:", error);
+    setIsTyping(false);
+    setTypingMessage("");
+    setPendingUserMessage(null);
+    if (currentChatId) {
+      dispatch(addNewMessage({
+        chatId: currentChatId,
+        content: `Error: ${error.message}`,
+        role: "ai",
+        messageType: "text"
+      }));
     }
-  };
+  } finally {
+    dispatch(setAiThinking(false));
+  }
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -538,8 +550,8 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <span
               className={`text-sm px-3 py-1.5 rounded-full font-medium tracking-wide ${plan === 'pro'
-                  ? 'bg-orange-500/15 text-orange-400'
-                  : 'bg-white/[0.06] text-slate-400'
+                ? 'bg-orange-500/15 text-orange-400'
+                : 'bg-white/[0.06] text-slate-400'
                 }`}
             >
               {plan === 'pro' ? 'PRO' : 'FREE'}
@@ -592,7 +604,7 @@ export default function Home() {
               <div className="max-w-3xl mx-auto py-6 space-y-6">
                 {!currentChatId && pendingUserMessage && (
                   <div className="flex flex-col items-end">
-                    <div className="max-w-[80%] px-4 py-3 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20">
+                    <div className="max-w-[80%] px-3 py-2 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20">
                       <p className="text-2xl leading-loose tracking-wide">{pendingUserMessage}</p>
                     </div>
                   </div>
@@ -613,7 +625,7 @@ export default function Home() {
                     <div
                       className={
                         msg.role === "user"
-                          ? "max-w-[80%] px-4 py-3 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20"
+                          ? "max-w-[80%] px-3 py-2 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20"
                           : "w-full px-4 py-3 text-slate-100"
                       }
                     >

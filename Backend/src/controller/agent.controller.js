@@ -3,6 +3,7 @@ import { searchInternet } from "../services/internet.service.js";
 import { sendEmail } from "../services/mail.service.js";
 import { generateGroqResponse } from "../services/models/groq.service.js";
 import { YoutubeTranscript } from 'youtube-transcript';
+import Bookmark from "../model/bookmark.model.js"
 import axios from "axios";
 import * as cheerio from 'cheerio';
 export async function webSearch(req, res) {
@@ -315,55 +316,24 @@ function extractYouTubeId(url) {
   return null;
 }
 
-export async function saveBookmark(req, res) {
+export async function getBookmarks(req, res) {
   try {
-    const { title, url, description, tags } = req.body;
-    const userId = req.user.id;
-
-    console.log("🔖 Received bookmark:", { title, url, userId });
-
-    if (!title || !url) {
-      return res.status(400).json({
+    // Fix: Use _id if id doesn't exist
+    const userId = req.user.id || req.user._id;
+    
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        message: "Title and URL are required"
+        message: "User not authenticated"
       });
     }
 
-    // For now, just return success (no DB yet)
-    const bookmark = {
-      userId,
-      title,
-      url,
-      description: description || '',
-      tags: tags || [],
-      savedAt: new Date().toISOString()
-    };
-
-    console.log("✅ Bookmark processed:", bookmark.title);
+    const bookmarks = await Bookmark.find({ userId })
+      .sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
-      message: "Bookmark saved successfully",
-      bookmark
-    });
-
-  } catch (error) {
-    console.error("❌ Save bookmark error:", error.message);
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Failed to save bookmark"
-    });
-  }
-}
-
-export async function getBookmarks(req, res) {
-  try {
-    const userId = req.user.id;
-
-    return res.status(200).json({
-      success: true,
-      bookmarks: [],
-      message: "Bookmarks feature coming soon"
+      bookmarks
     });
 
   } catch (error) {
@@ -375,6 +345,87 @@ export async function getBookmarks(req, res) {
   }
 }
 
+export async function saveBookmark(req, res) {
+  try {
+    const { title, url, description, tags } = req.body;
+    const userId = req.user.id || req.user._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated"
+      });
+    }
+
+    if (!title || !url) {
+      return res.status(400).json({
+        success: false,
+        message: "Title and URL are required"
+      });
+    }
+
+    const bookmark = new Bookmark({
+      userId,
+      title,
+      url,
+      description: description || '',
+      tags: tags || []
+    });
+
+    await bookmark.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Bookmark saved successfully",
+      bookmark
+    });
+
+  } catch (error) {
+    console.error("Save bookmark error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to save bookmark"
+    });
+  }
+}
+
+export async function deleteBookmark(req, res) {
+  try {
+    const { bookmarkId } = req.params;
+    const userId = req.user.id || req.user._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated"
+      });
+    }
+
+    const bookmark = await Bookmark.findOneAndDelete({
+      _id: bookmarkId,
+      userId: userId
+    });
+
+    if (!bookmark) {
+      return res.status(404).json({
+        success: false,
+        message: "Bookmark not found"
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Bookmark deleted successfully"
+    });
+
+  } catch (error) {
+    console.error("Delete bookmark error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+}
 
 export async function searchJobs(req, res) {
   try {

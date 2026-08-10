@@ -24,7 +24,6 @@ export default function Sidebar({
     navigate("/login");
   };
 
-  // Group chats by date
   const getChatGroups = () => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -102,6 +101,15 @@ export default function Sidebar({
         >
           <i className="fa-regular fa-images text-base"></i>
           {sidebarOpen && "Gallery"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate("/bookmarks")}
+          className={`w-full py-3 rounded-xl font-semibold text-base text-slate-300 bg-white/5 hover:bg-white/10 transition-all flex items-center justify-center gap-2 ${!sidebarOpen && "px-0"}`}
+        >
+          <i className="fa-regular fa-bookmark text-base"></i>
+          {sidebarOpen && "Bookmarks"}
         </button>
       </div>
 

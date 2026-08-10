@@ -326,18 +326,27 @@ export const useChats = () => {
         }
     }, [dispatch]);
 
-    const handleSaveBookmark = useCallback(async (data) => {
-        try {
-            dispatch(setLoading(true));
-            const result = await saveBookmark(data);
-            return result;
-        } catch (error) {
-            dispatch(setError(error.message));
-            throw error;
-        } finally {
-            dispatch(setLoading(false));
-        }
-    }, [dispatch]);
+const handleSaveBookmark = useCallback(async (data) => {
+  try {
+    dispatch(setLoading(true));
+    const result = await saveBookmark(data);
+    
+    // Return a user-friendly message
+    return {
+      success: true,
+      message: `✅ Bookmark saved: "${result.bookmark?.title || 'Unknown'}"`,
+      data: result
+    };
+  } catch (error) {
+    dispatch(setError(error.message));
+    return {
+      success: false,
+      message: ` Failed to save bookmark: ${error.message}`
+    };
+  } finally {
+    dispatch(setLoading(false));
+  }
+}, [dispatch]);
 
     const handleGetBookmarks = useCallback(async () => {
         try {

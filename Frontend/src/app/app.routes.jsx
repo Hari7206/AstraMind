@@ -5,6 +5,7 @@ import Dashboard from "../features/chat/pages/Dashboard";
 import Protected from "../features/auth/component/Protected";
 import Gallery from "../features/gallery/pages/Gallery";
 import Pricing from "../features/payment/pages/Pricing";
+import Bookmarks from "../features/bookmarks/pages/Bookmarks";
 
 export const router = createBrowserRouter([
   {
@@ -28,5 +29,9 @@ export const router = createBrowserRouter([
 {
   path: "/pricing",
   element: <Pricing />,
+},
+{
+path: "/bookmarks" ,
+element: <Bookmarks/>
 },
 ]);
