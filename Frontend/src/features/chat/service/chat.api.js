@@ -159,3 +159,8 @@ export const saveAgentMessages = async (chatId, userMessage, aiMessage) => {
   });
   return response.data;
 };
+
+export const logoutUser = async () => {
+    const response = await api.post("/api/auth/logout");
+    return response.data;
+};

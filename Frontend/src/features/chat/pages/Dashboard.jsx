@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import ReactMarkdown from 'react-markdown';
@@ -20,6 +21,7 @@ import Sidebar from "../component/Sidebar.jsx";
 import ChatInputBar from "../component/ChatInputBar.jsx";
 import { useMessageHandling } from "../hooks/useMessageHandling";
 
+// Memoized Markdown Components
 const markdownComponents = {
   code({ inline, className, children, ...props }) {
     if (inline) {
@@ -42,10 +44,146 @@ const markdownComponents = {
   },
 };
 
+// Memoized Message Component
+const MessageItem = React.memo(({ message, index, onToggleSpeech, onCopyText, speechState, copiedMessageIndex }) => {
+  const isUser = message.role === "user";
+  
+  return (
+    <div className={`flex flex-col group ${isUser ? "items-end" : "items-start"}`}>
+      {!isUser && (
+        <div className="text-base font-medium text-slate-500 mb-2 ml-1 flex items-center gap-2">
+          <span className="inline-block w-2 h-2 rounded-full bg-orange-400 shadow-[0_0_12px_4px] shadow-orange-400/30"></span>
+          AI • <span className="capitalize text-slate-400">{message.model || "mistral"}</span>
+        </div>
+      )}
+
+      <div className={
+        isUser
+          ? "max-w-[80%] px-3 py-2 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20"
+          : "w-full px-4 py-3 text-slate-100"
+      }>
+        {(!message.messageType || message.messageType === "text") && (
+          <div className="prose prose-invert max-w-none prose-2xl leading-relaxed tracking-wide">
+            <ReactMarkdown components={markdownComponents}>
+              {message.content}
+            </ReactMarkdown>
+          </div>
+        )}
+
+        {message.messageType === "image" && (
+          <div className="flex flex-col gap-3">
+            <img
+              src={message.fileUrl}
+              alt={message.content}
+              className="max-w-xs sm:max-w-md rounded-xl shadow-lg shadow-black/40"
+              loading="lazy"
+            />
+            <p className="text-base text-slate-400">{message.content}</p>
+          </div>
+        )}
+
+        {message.messageType === "document" && (
+          <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
+            <i className="fa-solid fa-file-pdf text-3xl text-orange-400"></i>
+            <div>
+              <p className="text-base font-medium">{message.content}</p>
+              {message.fileUrl && (
+                <a
+                  href={message.fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-base text-orange-400 hover:underline"
+                >
+                  View Document
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-2 flex items-center gap-2 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {(!message.messageType || message.messageType === "text") && (
+          <button
+            type="button"
+            onClick={() => onToggleSpeech(message.content, index)}
+            className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-white/10 rounded-md transition-colors bg-transparent border-none cursor-pointer"
+          >
+            {speechState.index === index && speechState.status === "playing" ? (
+              <i className="fa-solid fa-square text-sm text-slate-400"></i>
+            ) : speechState.index === index && speechState.status === "paused" ? (
+              <i className="ri-volume-up-line text-lg text-orange-400 animate-pulse"></i>
+            ) : (
+              <i className="ri-volume-up-line text-lg"></i>
+            )}
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => onCopyText(message.content, index)}
+          className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-white/10 rounded-md transition-colors bg-transparent border-none cursor-pointer"
+        >
+          {copiedMessageIndex === index ? (
+            <i className="fa-solid fa-check text-orange-400 text-base"></i>
+          ) : (
+            <i className="fa-regular fa-copy text-base"></i>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+});
+
+// Skeleton Loading Component
+const ChatSkeleton = () => (
+  <div className="flex-1 overflow-y-auto px-4 pt-20">
+    <div className="max-w-3xl mx-auto py-6 space-y-6">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className={`flex ${i % 2 === 0 ? 'items-end' : 'items-start'}`}>
+          <div className={`max-w-[80%] rounded-2xl p-4 ${
+            i % 2 === 0 
+              ? 'bg-gradient-to-br from-orange-500/50 to-orange-600/50' 
+              : 'bg-white/5'
+          } animate-pulse`}>
+            <div className="h-4 bg-white/20 rounded w-32"></div>
+            <div className="space-y-2 mt-2">
+              <div className="h-3 bg-white/20 rounded w-48"></div>
+              <div className="h-3 bg-white/20 rounded w-40"></div>
+              <div className="h-3 bg-white/20 rounded w-36"></div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+// Smooth Loading Spinner Component
+const LoadingSpinner = ({ message = "Loading..." }) => (
+  <div className="flex h-screen bg-black text-white items-center justify-center">
+    <div className="flex flex-col items-center gap-6">
+      <div className="flex gap-3">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="w-4 h-4 rounded-full bg-gradient-to-br from-orange-400 to-orange-600"
+            style={{
+              animation: `dotPulse 1.4s ease-in-out ${i * 0.2}s infinite`
+            }}
+          />
+        ))}
+      </div>
+      <span className="text-slate-400 text-lg animate-pulse">{message}</span>
+    </div>
+  </div>
+);
+
 export default function Home() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  // Redux Selectors
   const chats = useSelector((state) => state.chat.chats);
   const currentChatId = useSelector((state) => state.chat.currentChatId);
   const isAiThinking = useSelector((state) => state.chat.isAiThinking);
@@ -53,6 +191,7 @@ export default function Home() {
   const user = useSelector((state) => state.auth.user);
   const [isUserLoading, setIsUserLoading] = useState(true);
 
+  // Hooks
   const {
     handleSendMessage,
     handleGetChats,
@@ -64,9 +203,11 @@ export default function Home() {
     handleGenerateEmail,
     handleSummarizeYouTube,
     handleSaveBookmark,
-    handleSearchJobs
+    handleSearchJobs,
+    handleLogout, // NEW: Import logout handler
   } = useChats();
 
+  // Local State
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [plan, setPlanState] = useState("free");
   const [searchesUsed, setSearchesUsed] = useState(0);
@@ -79,9 +220,14 @@ export default function Home() {
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [isNewChat, setIsNewChat] = useState(true);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [showSkeleton, setShowSkeleton] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // NEW: Logout confirm state
 
+  // Refs
   const chatEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const loadTimeoutRef = useRef(null);
 
   const {
     message,
@@ -106,37 +252,42 @@ export default function Home() {
     handleFileUpload: handleFileUploadHook,
   } = useMessageHandling();
 
-  const activeChat = currentChatId ? chats[currentChatId] : null;
-  const hasMessages = activeChat?.messages?.length > 0;
-  const showChatView = hasMessages || !!pendingUserMessage;
+  // Memoized values
+  const activeChat = useMemo(() => currentChatId ? chats[currentChatId] : null, [chats, currentChatId]);
+  const hasMessages = useMemo(() => activeChat?.messages?.length > 0, [activeChat]);
+  const showChatView = useMemo(() => hasMessages || !!pendingUserMessage, [hasMessages, pendingUserMessage]);
+  const chatList = useMemo(() => Object.values(chats).sort(
+    (a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated)
+  ), [chats]);
 
-  const handleNewChat = () => {
-    dispatch(setCurrentChatId(null));
-    setMessage("");
-    setSelectedMode(null);
-    setIsPlusMenuOpen(false);
-    setIsNewChat(true);
-    setIsLoadingChat(false);
-  };
-
-  const handleSelectChat = async (chatId) => {
-    setIsLoadingChat(true);
-    dispatch(setCurrentChatId(chatId));
-    await handleGetMessages(chatId);
-    setIsPlusMenuOpen(false);
-    setIsNewChat(false);
-    setIsLoadingChat(false);
-  };
-
+  // CSS Animation
   useEffect(() => {
-    if (!activeChat?.messages || activeChat.messages.length === 0) {
-      setIsNewChat(true);
-    } else {
-      setIsNewChat(false);
-    }
-  }, [activeChat]);
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes dotPulse {
+        0%, 100% {
+          transform: scale(0.5);
+          opacity: 0.3;
+        }
+        50% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
 
-  const typeMessage = async (text) => {
+  // Type message effect
+  const typeMessage = useCallback(async (text) => {
     setIsTyping(true);
     setTypingMessage("");
 
@@ -155,37 +306,10 @@ export default function Home() {
     if (container && !isUserScrolling) {
       container.scrollTop = container.scrollHeight;
     }
-  };
+  }, [isUserScrolling]);
 
-  useEffect(() => {
-    handleGetChats();
-  }, [handleGetChats]);
-
-  useEffect(() => {
-    const fetchSubscription = async () => {
-      try {
-        const data = await getSubscription();
-        setPlanState(data.plan);
-        setSearchesUsed(data.searchesUsed || 0);
-        setSearchesLimit(data.limit === "Unlimited" ? Infinity : data.limit);
-        dispatch(setPlan(data.plan));
-        if (data.plan === "free" && data.searchesUsed >= 2) {
-          setShowUpgradeCard(true);
-        }
-      } catch (error) {
-        console.error("Failed to fetch subscription:", error);
-      }
-    };
-    fetchSubscription();
-  }, []);
-
-  useEffect(() => {
-    if (user && (user.username || user.email)) {
-      setIsUserLoading(false);
-    }
-  }, [user]);
-
-  const handleScroll = () => {
+  // Scroll handlers
+  const handleScroll = useCallback(() => {
     const container = messagesContainerRef.current;
     if (container) {
       const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
@@ -194,14 +318,9 @@ export default function Home() {
         setShouldScrollToBottom(false);
       }
     }
-  };
+  }, []);
 
-  useEffect(() => {
-    if (activeChat?.messages?.length > 0) {
-      setShouldScrollToBottom(true);
-    }
-  }, [activeChat?.messages?.length]);
-
+  // Scroll to bottom effect
   useEffect(() => {
     if (shouldScrollToBottom) {
       const container = messagesContainerRef.current;
@@ -221,14 +340,73 @@ export default function Home() {
         }, 50);
       }
     }
-  }, [isAiThinking]);
+  }, [isAiThinking, isUserScrolling]);
 
+  // Load initial data in parallel
+  useEffect(() => {
+    const loadInitialData = async () => {
+      setIsUserLoading(true);
+      try {
+        const [chatsData, subscriptionData] = await Promise.all([
+          handleGetChats(),
+          getSubscription()
+        ]);
+
+        if (subscriptionData) {
+          setPlanState(subscriptionData.plan);
+          setSearchesUsed(subscriptionData.searchesUsed || 0);
+          setSearchesLimit(subscriptionData.limit === "Unlimited" ? Infinity : subscriptionData.limit);
+          dispatch(setPlan(subscriptionData.plan));
+          if (subscriptionData.plan === "free" && subscriptionData.searchesUsed >= 2) {
+            setShowUpgradeCard(true);
+          }
+        }
+
+        setInitialLoadComplete(true);
+      } catch (error) {
+        console.error("Failed to load initial data:", error);
+        if (loadTimeoutRef.current) {
+          clearTimeout(loadTimeoutRef.current);
+        }
+        loadTimeoutRef.current = setTimeout(loadInitialData, 3000);
+      } finally {
+        setIsUserLoading(false);
+      }
+    };
+
+    loadInitialData();
+
+    return () => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
+    };
+  }, [dispatch, handleGetChats]);
+
+  // Update new chat status
+  useEffect(() => {
+    if (!activeChat?.messages || activeChat.messages.length === 0) {
+      setIsNewChat(true);
+    } else {
+      setIsNewChat(false);
+    }
+  }, [activeChat]);
+
+  // User loading state
+  useEffect(() => {
+    if (user && (user.username || user.email)) {
+      setIsUserLoading(false);
+    }
+  }, [user]);
+
+  // Clean up speech on unmount
   useEffect(() => {
     return () => {
       window.speechSynthesis?.cancel();
     };
   }, [currentChatId]);
 
+  // Socket connection
   useEffect(() => {
     if (!currentChatId) return;
 
@@ -245,7 +423,59 @@ export default function Home() {
     };
   }, [currentChatId, dispatch]);
 
-  const handleImageClick = async () => {
+  // Handlers
+  const handleNewChat = useCallback(() => {
+    dispatch(setCurrentChatId(null));
+    setMessage("");
+    setSelectedMode(null);
+    setIsPlusMenuOpen(false);
+    setIsNewChat(true);
+    setIsLoadingChat(false);
+    setShowSkeleton(false);
+  }, [dispatch, setMessage, setSelectedMode, setIsPlusMenuOpen]);
+
+  const handleSelectChat = useCallback(async (chatId) => {
+    setIsLoadingChat(true);
+    setShowSkeleton(true);
+    
+    try {
+      dispatch(setCurrentChatId(chatId));
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout loading messages')), 10000)
+      );
+      
+      const messagesPromise = handleGetMessages(chatId);
+      await Promise.race([messagesPromise, timeoutPromise]);
+      
+      setIsPlusMenuOpen(false);
+      setIsNewChat(false);
+    } catch (error) {
+      console.error("Failed to load chat:", error);
+      setShowSkeleton(false);
+    } finally {
+      setIsLoadingChat(false);
+      setShowSkeleton(false);
+    }
+  }, [dispatch, handleGetMessages, setIsPlusMenuOpen]);
+
+  // NEW: Handle logout
+  const handleLogoutClick = useCallback(async () => {
+    try {
+      await handleLogout();
+      // Clear user data from Redux or local storage if needed
+      // Navigate to login page
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // Show error message to user
+      alert("Failed to logout. Please try again.");
+    } finally {
+      setShowLogoutConfirm(false);
+    }
+  }, [handleLogout, navigate]);
+
+  const handleImageClick = useCallback(async () => {
     const prompt = message.trim();
     if (!prompt) return;
 
@@ -287,7 +517,7 @@ export default function Home() {
         }
 
         if (!currentChatId && data.chatId) {
-          handleGetChats();
+          await handleGetChats();
         } else {
           await handleGetMessages(activeSessionId);
         }
@@ -298,132 +528,131 @@ export default function Home() {
       dispatch(setAiThinking(false));
       setMessage("");
     }
-  };
+  }, [message, currentChatId, dispatch, generateImageFromApi, handleGetChats, handleGetMessages, setMessage]);
 
-const handleAgentAction = async (action, data) => {
-  setSelectedMode(null);
-  setMessage("");
+  const handleAgentAction = useCallback(async (action, data) => {
+    setSelectedMode(null);
+    setMessage("");
 
-  const userMessage = data;
-  const hasActiveChat = !!currentChatId;
-
-  if (hasActiveChat) {
-    dispatch(addNewMessage({
-      chatId: currentChatId,
-      content: userMessage,
-      role: "user",
-      messageType: "text"
-    }));
-    setShouldScrollToBottom(true);
-  } else {
-    setPendingUserMessage(userMessage);
-    setShouldScrollToBottom(true);
-  }
-
-  dispatch(setAiThinking(true));
-
-  let displayMessage = "";
-
-  try {
-    switch (action) {
-      case 'webSearch': {
-        const searchResult = await handleWebSearch(userMessage);
-        // Extract the summary string from the response
-        displayMessage = typeof searchResult === 'string' 
-          ? searchResult 
-          : searchResult?.summary || searchResult?.message || JSON.stringify(searchResult);
-        break;
-      }
-      case 'jobSearch': {
-        const jobResult = await handleSearchJobs(userMessage);
-        displayMessage = typeof jobResult === 'string'
-          ? jobResult
-          : jobResult?.message || jobResult?.summary || JSON.stringify(jobResult);
-        break;
-      }
-      case 'generateEmail': {
-        const emailResult = await handleGenerateEmail(userMessage);
-        displayMessage = typeof emailResult === 'string'
-          ? emailResult
-          : emailResult?.email?.body || emailResult?.message || JSON.stringify(emailResult);
-        break;
-      }
-      case 'youtubeSummarize': {
-        const youtubeResult = await handleSummarizeYouTube(userMessage);
-        displayMessage = typeof youtubeResult === 'string'
-          ? youtubeResult
-          : youtubeResult?.summary || youtubeResult?.message || JSON.stringify(youtubeResult);
-        break;
-      }
-      case 'saveBookmark': {
-        const bookmarkResult = await handleSaveBookmark(userMessage);
-        if (bookmarkResult.success) {
-          displayMessage = bookmarkResult.message;
-        } else {
-          displayMessage = bookmarkResult.message || "Failed to save bookmark. Please use format: Title, URL (e.g., Google, https://google.com)";
-        }
-        break;
-      }
-      default:
-        throw new Error('Unknown action');
-    }
-
-    dispatch(setAiThinking(false));
-    await typeMessage(displayMessage);
+    const userMessage = data;
+    const hasActiveChat = !!currentChatId;
 
     if (hasActiveChat) {
       dispatch(addNewMessage({
         chatId: currentChatId,
-        content: displayMessage,
-        role: "ai",
-        messageType: "text"
-      }));
-    } else {
-      const newChatId = Date.now().toString();
-      dispatch(createNewChat({
-        chatId: newChatId,
-        title: userMessage.slice(0, 30) + (userMessage.length > 30 ? "..." : "")
-      }));
-      dispatch(setCurrentChatId(newChatId));
-
-      dispatch(addNewMessage({
-        chatId: newChatId,
         content: userMessage,
         role: "user",
         messageType: "text"
       }));
-      dispatch(addNewMessage({
-        chatId: newChatId,
-        content: displayMessage,
-        role: "ai",
-        messageType: "text"
-      }));
-      await handleGetChats();
+      setShouldScrollToBottom(true);
+    } else {
+      setPendingUserMessage(userMessage);
+      setShouldScrollToBottom(true);
     }
 
-    setIsTyping(false);
-    setTypingMessage("");
-    setPendingUserMessage(null);
+    dispatch(setAiThinking(true));
 
-  } catch (error) {
-    console.error("Agent action error:", error);
-    setIsTyping(false);
-    setTypingMessage("");
-    setPendingUserMessage(null);
-    if (currentChatId) {
-      dispatch(addNewMessage({
-        chatId: currentChatId,
-        content: `Error: ${error.message}`,
-        role: "ai",
-        messageType: "text"
-      }));
+    let displayMessage = "";
+
+    try {
+      switch (action) {
+        case 'webSearch': {
+          const searchResult = await handleWebSearch(userMessage);
+          displayMessage = typeof searchResult === 'string' 
+            ? searchResult 
+            : searchResult?.summary || searchResult?.message || JSON.stringify(searchResult);
+          break;
+        }
+        case 'jobSearch': {
+          const jobResult = await handleSearchJobs(userMessage);
+          displayMessage = typeof jobResult === 'string'
+            ? jobResult
+            : jobResult?.message || jobResult?.summary || JSON.stringify(jobResult);
+          break;
+        }
+        case 'generateEmail': {
+          const emailResult = await handleGenerateEmail(userMessage);
+          displayMessage = typeof emailResult === 'string'
+            ? emailResult
+            : emailResult?.email?.body || emailResult?.message || JSON.stringify(emailResult);
+          break;
+        }
+        case 'youtubeSummarize': {
+          const youtubeResult = await handleSummarizeYouTube(userMessage);
+          displayMessage = typeof youtubeResult === 'string'
+            ? youtubeResult
+            : youtubeResult?.summary || youtubeResult?.message || JSON.stringify(youtubeResult);
+          break;
+        }
+        case 'saveBookmark': {
+          const bookmarkResult = await handleSaveBookmark(userMessage);
+          if (bookmarkResult.success) {
+            displayMessage = bookmarkResult.message;
+          } else {
+            displayMessage = bookmarkResult.message || "Failed to save bookmark. Please use format: Title, URL (e.g., Google, https://google.com)";
+          }
+          break;
+        }
+        default:
+          throw new Error('Unknown action');
+      }
+
+      dispatch(setAiThinking(false));
+      await typeMessage(displayMessage);
+
+      if (hasActiveChat) {
+        dispatch(addNewMessage({
+          chatId: currentChatId,
+          content: displayMessage,
+          role: "ai",
+          messageType: "text"
+        }));
+      } else {
+        const newChatId = Date.now().toString();
+        dispatch(createNewChat({
+          chatId: newChatId,
+          title: userMessage.slice(0, 30) + (userMessage.length > 30 ? "..." : "")
+        }));
+        dispatch(setCurrentChatId(newChatId));
+
+        dispatch(addNewMessage({
+          chatId: newChatId,
+          content: userMessage,
+          role: "user",
+          messageType: "text"
+        }));
+        dispatch(addNewMessage({
+          chatId: newChatId,
+          content: displayMessage,
+          role: "ai",
+          messageType: "text"
+        }));
+        await handleGetChats();
+      }
+
+      setIsTyping(false);
+      setTypingMessage("");
+      setPendingUserMessage(null);
+
+    } catch (error) {
+      console.error("Agent action error:", error);
+      setIsTyping(false);
+      setTypingMessage("");
+      setPendingUserMessage(null);
+      if (currentChatId) {
+        dispatch(addNewMessage({
+          chatId: currentChatId,
+          content: `Error: ${error.message}`,
+          role: "ai",
+          messageType: "text"
+        }));
+      }
+    } finally {
+      dispatch(setAiThinking(false));
     }
-  } finally {
-    dispatch(setAiThinking(false));
-  }
-};
+  }, [currentChatId, dispatch, handleWebSearch, handleSearchJobs, handleGenerateEmail, handleSummarizeYouTube, handleSaveBookmark, setSelectedMode, setMessage, typeMessage, handleGetChats]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
 
     const trimmedMessage = message.trim();
@@ -473,13 +702,13 @@ const handleAgentAction = async (action, data) => {
         setPendingUserMessage(null);
       }
     }
-  };
+  }, [message, selectedMode, currentChatId, chats, dispatch, setMessage, handleAgentAction, handleChatWithDocument, handleSendMessage]);
 
-  const handleFileUpload = async (file) => {
+  const handleFileUpload = useCallback(async (file) => {
     await handleUploadDocument(file, currentChatId);
-  };
+  }, [handleUploadDocument, currentChatId]);
 
-  const getModePlaceholder = () => {
+  const getModePlaceholder = useCallback(() => {
     const modes = {
       'webSearch': 'Enter your search query...',
       'jobSearch': 'Enter job title and location (e.g., React Developer, Bangalore)',
@@ -489,21 +718,11 @@ const handleAgentAction = async (action, data) => {
       'upload': 'Select a file to upload'
     };
     return modes[selectedMode] || "Ask anything...";
-  };
+  }, [selectedMode]);
 
-  const chatList = Object.values(chats).sort(
-    (a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated)
-  );
-
-  if (isUserLoading) {
-    return (
-      <div className="flex h-screen bg-black text-white items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-3 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
-          <span className="text-slate-400 text-lg">Loading...</span>
-        </div>
-      </div>
-    );
+  // Loading States
+  if (isUserLoading || !initialLoadComplete) {
+    return <LoadingSpinner message="Setting up your workspace..." />;
   }
 
   return (
@@ -522,7 +741,7 @@ const handleAgentAction = async (action, data) => {
       />
 
       <div className="flex-1 flex flex-col min-w-0 h-screen bg-black relative overflow-hidden">
-        {!showChatView && !isLoadingChat && (
+        {!showChatView && !isLoadingChat && !showSkeleton && (
           <div
             className="pointer-events-none absolute inset-0 z-0 blur-3xl"
             aria-hidden="true"
@@ -535,6 +754,7 @@ const handleAgentAction = async (action, data) => {
           />
         )}
 
+        {/* Header */}
         <div className="absolute top-0 left-0 right-0 z-20 px-6 py-4 flex items-center justify-between bg-black/30 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <h2 className="font-bold text-xl text-white">
@@ -548,11 +768,16 @@ const handleAgentAction = async (action, data) => {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* User Name Display */}
+            <span className="text-sm text-slate-300 bg-white/[0.06] px-3 py-1.5 rounded-lg">
+              👤 {user?.username || "User"}
+            </span>
+
             <span
               className={`text-sm px-3 py-1.5 rounded-full font-medium tracking-wide ${plan === 'pro'
                 ? 'bg-orange-500/15 text-orange-400'
                 : 'bg-white/[0.06] text-slate-400'
-                }`}
+              }`}
             >
               {plan === 'pro' ? 'PRO' : 'FREE'}
             </span>
@@ -584,16 +809,44 @@ const handleAgentAction = async (action, data) => {
               <option className="bg-[#0a0a0f]" value="mistral">Mistral</option>
               <option className="bg-[#0a0a0f]" value="groq">Groq</option>
             </select>
+
+            {/* Logout Button */}
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              className="text-sm px-3.5 py-1.5 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all font-medium"
+            >
+              Logout
+            </button>
           </div>
         </div>
 
-        {isLoadingChat ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-10 h-10 border-3 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
-              <span className="text-slate-400 text-base">Loading chat...</span>
+        {/* Logout Confirmation Modal */}
+        {showLogoutConfirm && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-8 max-w-md w-full">
+              <h3 className="text-xl font-semibold text-white mb-2">Confirm Logout</h3>
+              <p className="text-slate-400 mb-6">Are you sure you want to logout from AstraMind?</p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="px-6 py-2 rounded-xl bg-white/5 text-slate-300 hover:bg-white/10 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLogoutClick}
+                  className="px-6 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-all"
+                >
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
+        )}
+
+        {/* Main Content */}
+        {isLoadingChat || showSkeleton ? (
+          <ChatSkeleton />
         ) : showChatView ? (
           <>
             <div
@@ -611,94 +864,15 @@ const handleAgentAction = async (action, data) => {
                 )}
 
                 {activeChat?.messages?.map((msg, index) => (
-                  <div
-                    key={index}
-                    className={`flex flex-col group ${msg.role === "user" ? "items-end" : "items-start"}`}
-                  >
-                    {msg.role === "ai" && (
-                      <div className="text-base font-medium text-slate-500 mb-2 ml-1 flex items-center gap-2">
-                        <span className="inline-block w-2 h-2 rounded-full bg-orange-400 shadow-[0_0_12px_4px] shadow-orange-400/30"></span>
-                        AI • <span className="capitalize text-slate-400">{msg.model || "mistral"}</span>
-                      </div>
-                    )}
-
-                    <div
-                      className={
-                        msg.role === "user"
-                          ? "max-w-[80%] px-3 py-2 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/20"
-                          : "w-full px-4 py-3 text-slate-100"
-                      }
-                    >
-                      {(!msg.messageType || msg.messageType === "text") && (
-                        <div className="prose prose-invert max-w-none prose-2xl leading-relaxed tracking-wide">
-                          <ReactMarkdown components={markdownComponents}>
-                            {msg.content}
-                          </ReactMarkdown>
-                        </div>
-                      )}
-
-                      {msg.messageType === "image" && (
-                        <div className="flex flex-col gap-3">
-                          <img
-                            src={msg.fileUrl}
-                            alt={msg.content}
-                            className="max-w-xs sm:max-w-md rounded-xl shadow-lg shadow-black/40"
-                            loading="lazy"
-                          />
-                          <p className="text-base text-slate-400">{msg.content}</p>
-                        </div>
-                      )}
-
-                      {msg.messageType === "document" && (
-                        <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
-                          <i className="fa-solid fa-file-pdf text-3xl text-orange-400"></i>
-                          <div>
-                            <p className="text-base font-medium">{msg.content}</p>
-                            {msg.fileUrl && (
-                              <a
-                                href={msg.fileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-base text-orange-400 hover:underline"
-                              >
-                                View Document
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mt-2 flex items-center gap-2 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {(!msg.messageType || msg.messageType === "text") && (
-                        <button
-                          type="button"
-                          onClick={() => handleToggleSpeech(msg.content, index)}
-                          className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-white/10 rounded-md transition-colors bg-transparent border-none cursor-pointer"
-                        >
-                          {speechState.index === index && speechState.status === "playing" ? (
-                            <i className="fa-solid fa-square text-sm text-slate-400"></i>
-                          ) : speechState.index === index && speechState.status === "paused" ? (
-                            <i className="ri-volume-up-line text-lg text-orange-400 animate-pulse"></i>
-                          ) : (
-                            <i className="ri-volume-up-line text-lg"></i>
-                          )}
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => handleCopyText(msg.content, index)}
-                        className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-white/10 rounded-md transition-colors bg-transparent border-none cursor-pointer"
-                      >
-                        {copiedMessageIndex === index ? (
-                          <i className="fa-solid fa-check text-orange-400 text-base"></i>
-                        ) : (
-                          <i className="fa-regular fa-copy text-base"></i>
-                        )}
-                      </button>
-                    </div>
-                  </div>
+                  <MessageItem
+                    key={msg.id || index}
+                    message={msg}
+                    index={index}
+                    onToggleSpeech={handleToggleSpeech}
+                    onCopyText={handleCopyText}
+                    speechState={speechState}
+                    copiedMessageIndex={copiedMessageIndex}
+                  />
                 ))}
 
                 <div ref={chatEndRef} />

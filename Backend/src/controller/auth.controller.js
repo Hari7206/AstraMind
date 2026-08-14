@@ -1,156 +1,166 @@
 import userModel from "../model/user.model.js";
-import cookieParser from "cookie-parser"
-import jwt from "jsonwebtoken"
-
+import cookieParser from "cookie-parser";
+import jwt from "jsonwebtoken";
 import { sendEmail } from "../services/mail.service.js";
 
-async function register(req , res  ) {
-    const {username , password , email} = req.body
+async function register(req, res) {
+    const { username, password, email } = req.body;
     const isAlreadyExist = await userModel.findOne({
-        $or : [
-            {username : username} , 
-            {email : email}     
+        $or: [
+            { username: username },
+            { email: email }
         ]
-    })
-    if(isAlreadyExist) {
+    });
+    if (isAlreadyExist) {
         return res.status(400).json({
-            message : "Username or email already exist" ,
-            sucess : false ,
+            message: "Username or email already exist",
+            success: false,
             err: "Username or email already exist"
-        })
+        });
     }
 
     const user = await userModel.create({
-        username , 
-        password , 
+        username,
+        password,
         email
-    })
+    });
 
-    const emailVerificationToken = jwt.sign({ email : user.email} , process.env.JWT_SECRET_KEY)
+    const emailVerificationToken = jwt.sign({ email: user.email }, process.env.JWT_SECRET_KEY);
     await sendEmail({
-        to : email ,
-        subject : "Welcome to AstraMind" ,
-        html : `<h1>Welcome to AstraMind</h1>
+        to: email,
+        subject: "Welcome to AstraMind",
+        html: `<h1>Welcome to AstraMind</h1>
         <p>Thank you for registering with us. We are excited to have you on board!</p>
         <p>Please click the link below to verify your email address:</p>
         <a href="http://localhost:3000/api/auth/verify-email?token=${emailVerificationToken}">Verify Email</a>
         <p>If you did not register for an account, please ignore this email.</p>
-        <p>Best regards,<br>AstraMind Team</p>` 
-    })
+        <p>Best regards,<br>AstraMind Team</p>`
+    });
     return res.status(201).json({
-        message : "User registered successfully" ,
-        sucess : true ,
-        user : {
-            id : user._id ,
-            username : user.username ,
-            email : user.email
+        message: "User registered successfully",
+        success: true,
+        user: {
+            id: user._id,
+            username: user.username,
+            email: user.email
         }
-    })
+    });
 }
 
-
-
-async function verifyEmail(req , res) {
-
-    const {token} = req.query
-    if(!token) {
+async function verifyEmail(req, res) {
+    const { token } = req.query;
+    if (!token) {
         return res.status(400).json({
-            message : "Token is required" ,
-            sucess : false ,
-            err : "Token is required"
-        })
+            message: "Token is required",
+            success: false,
+            err: "Token is required"
+        });
     }
     try {
-        const decoded = jwt.verify(token , process.env.JWT_SECRET_KEY)
-        const user = await userModel.findOne({email : decoded.email})
-        if(!user) {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+        const user = await userModel.findOne({ email: decoded.email });
+        if (!user) {
             return res.status(400).json({
-                message : "Invalid token" ,
-                sucess : false ,
-                err : "Invalid token"
-            })
+                message: "Invalid token",
+                success: false,
+                err: "Invalid token"
+            });
         }
-        user.isVerified = true
-        await user.save()
+        user.isVerified = true;
+        await user.save();
 
-    const html = `<h1>Email Verified</h1>
-    <p>Your email has been successfully verified. You can now log in to your account.</p>
-    <a href="http://localhost:3000/login">Go to Login</a>
-    <p>Best regards,<br>AstraMind Team</p>`
+        const html = `<h1>Email Verified</h1>
+        <p>Your email has been successfully verified. You can now log in to your account.</p>
+        <a href="http://localhost:3000/login">Go to Login</a>
+        <p>Best regards,<br>AstraMind Team</p>`;
 
-    res.send(html)
-
-    }
-    catch(err) {
+        res.send(html);
+    } catch (err) {
         return res.status(400).json({
-            message : "Invalid token" ,
-            sucess : false ,
-            err : "Invalid token"
-        })
+            message: "Invalid token",
+            success: false,
+            err: "Invalid token"
+        });
     }
 }
 
+async function login(req, res) {
+    const { email, password } = req.body;
 
+    const user = await userModel.findOne({ email: email });
 
-async function login(req , res) {
-    const {email , password} = req.body
-
-    const user = await userModel.findOne({email : email})
-
-    if(!user) {
+    if (!user) {
         return res.status(400).json({
-            message : "Invalid email or password" ,
-            sucess : false ,
-            err : "Invalid email or password"
-        })
+            message: "Invalid email or password",
+            success: false,
+            err: "Invalid email or password"
+        });
     }
-    if(!user.isVerified) {
+    if (!user.isVerified) {
         return res.status(400).json({
-            message : "Email is not verified" ,
-            sucess : false ,
-            err : "Email is not verified"
-        })
+            message: "Email is not verified",
+            success: false,
+            err: "Email is not verified"
+        });
     }
-    const isMatch = await user.comparePassword(password)
-    if(!isMatch) {
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
         return res.status(400).json({
-            message : "Invalid email or password" ,
-            sucess : false ,
-            err : "Invalid email or password"
-        })
+            message: "Invalid email or password",
+            success: false,
+            err: "Invalid email or password"
+        });
     }
-    const token = jwt.sign({id : user._id} , process.env.JWT_SECRET_KEY , {expiresIn : "7d"})
-    res.cookie("token" , token )
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET_KEY, { expiresIn: "7d" });
+    res.cookie("token", token);
     return res.status(200).json({
-        message : "Login successful" ,
-        sucess : true ,
-        user : {
-            id : user._id ,
-            username : user.username ,
-            email : user.email
+        message: "Login successful",
+        success: true,
+        user: {
+            id: user._id,
+            username: user.username,
+            email: user.email
         }
-    })
-
+    });
 }
 
-async function getMe(req , res) {
-    const userId = req.user.id
-    const user = await userModel.findById(userId).select("-password")
+async function getMe(req, res) {
+    const userId = req.user.id;
+    const user = await userModel.findById(userId).select("-password");
 
-    if(!user) {
+    if (!user) {
         return res.status(404).json({
-            message : "User not found" ,    
-            sucess : false ,
-            err : "User not found"
-        })
+            message: "User not found",
+            success: false,
+            err: "User not found"
+        });
     }
 
     return res.status(200).json({
-        message : "User fetched successfully" ,
-        sucess : true ,
+        message: "User fetched successfully",
+        success: true,
         user
-    })
-    
+    });
 }
 
-export  {register , verifyEmail , login , getMe}
+async function logout(req, res) {
+    try {
+        res.clearCookie("token", {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax"
+        });
+        return res.status(200).json({
+            message: "Logged out successfully",
+            success: true
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: "Error logging out",
+            success: false,
+            err: error.message
+        });
+    }
+}
+
+export { register, verifyEmail, login, getMe, logout };

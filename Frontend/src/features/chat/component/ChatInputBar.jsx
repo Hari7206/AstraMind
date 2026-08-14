@@ -25,7 +25,6 @@ export default function ChatInputBar({
   return (
     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto w-full">
       <div className="relative">
-        {/* Glow effect - only show on new chat */}
         {isNewChat && (
           <div
             className="absolute -inset-0.5 rounded-3xl blur-md transition-all duration-500 bg-gradient-to-r from-orange-500/30 to-orange-600/30 animate-pulse"
@@ -154,7 +153,6 @@ export default function ChatInputBar({
               )}
             </div>
 
-            {/* Send Button */}
             <button
               type="submit"
               disabled={isAiThinking || isListening || isUploading}

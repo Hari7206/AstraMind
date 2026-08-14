@@ -16,7 +16,7 @@ import {
     summarizeYouTube,
     saveBookmark,
     getBookmarks,
-    searchJobs ,
+    searchJobs,
     saveAgentMessages
 } from "../service/chat.api.js";
 
@@ -326,27 +326,27 @@ export const useChats = () => {
         }
     }, [dispatch]);
 
-const handleSaveBookmark = useCallback(async (data) => {
-  try {
-    dispatch(setLoading(true));
-    const result = await saveBookmark(data);
-    
-    // Return a user-friendly message
-    return {
-      success: true,
-      message: `✅ Bookmark saved: "${result.bookmark?.title || 'Unknown'}"`,
-      data: result
-    };
-  } catch (error) {
-    dispatch(setError(error.message));
-    return {
-      success: false,
-      message: ` Failed to save bookmark: ${error.message}`
-    };
-  } finally {
-    dispatch(setLoading(false));
-  }
-}, [dispatch]);
+    const handleSaveBookmark = useCallback(async (data) => {
+        try {
+            dispatch(setLoading(true));
+            const result = await saveBookmark(data);
+
+            // Return a user-friendly message
+            return {
+                success: true,
+                message: `✅ Bookmark saved: "${result.bookmark?.title || 'Unknown'}"`,
+                data: result
+            };
+        } catch (error) {
+            dispatch(setError(error.message));
+            return {
+                success: false,
+                message: ` Failed to save bookmark: ${error.message}`
+            };
+        } finally {
+            dispatch(setLoading(false));
+        }
+    }, [dispatch]);
 
     const handleGetBookmarks = useCallback(async () => {
         try {
@@ -374,16 +374,29 @@ const handleSaveBookmark = useCallback(async (data) => {
         }
     }, [dispatch]);
 
-const handleSaveAgentMessages = useCallback(async (chatId, userMessage, aiMessage) => {
-  try {
-    const response = await saveAgentMessages(chatId, userMessage, aiMessage);
-    return response;
-  } catch (error) {
-    console.error("Save agent messages error:", error.message);
-    throw error;
-  }
-}, []);
+    const handleSaveAgentMessages = useCallback(async (chatId, userMessage, aiMessage) => {
+        try {
+            const response = await saveAgentMessages(chatId, userMessage, aiMessage);
+            return response;
+        } catch (error) {
+            console.error("Save agent messages error:", error.message);
+            throw error;
+        }
+    }, []);
 
+
+    const handleLogout = useCallback(async () => {
+        try {
+            dispatch(setLoading(true));
+            const response = await logoutUser();
+            return response;
+        } catch (error) {
+            dispatch(setError(error.message));
+            throw error;
+        } finally {
+            dispatch(setLoading(false));
+        }
+    }, [dispatch]);
     return {
         initializeSocketConnection,
         handleSendMessage,
@@ -401,7 +414,8 @@ const handleSaveAgentMessages = useCallback(async (chatId, userMessage, aiMessag
         handleSummarizeYouTube,
         handleSaveBookmark,
         handleGetBookmarks,
-        handleSearchJobs ,
-          handleSaveAgentMessages
+        handleSearchJobs,
+        handleSaveAgentMessages,
+        handleLogout
     };
 };
