@@ -459,16 +459,15 @@ export default function Home() {
     }
   }, [dispatch, handleGetMessages, setIsPlusMenuOpen]);
 
-  // NEW: Handle logout
+
   const handleLogoutClick = useCallback(async () => {
     try {
       await handleLogout();
-      // Clear user data from Redux or local storage if needed
-      // Navigate to login page
+
       navigate("/login");
     } catch (error) {
       console.error("Logout failed:", error);
-      // Show error message to user
+
       alert("Failed to logout. Please try again.");
     } finally {
       setShowLogoutConfirm(false);
