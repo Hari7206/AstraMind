@@ -1,20 +1,19 @@
 import "dotenv/config";
-import { ChatMistralAI } from "@langchain/mistralai";
+import { ChatOpenAI } from "@langchain/openai";
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import { tool } from "@langchain/core/tools";
-import * as z from "zod"
-import {createAgent} from "langchain"
+import * as z from "zod";
+import { createAgent } from "langchain";
 import { searchInternet } from "./internet.service.js";
 
-
-
-
-const model = new ChatMistralAI({
-  model: "mistral-large-latest",
-  apiKey: process.env.MISTRAL_API_KEY,
+const model = new ChatOpenAI({
+  model: "openai/gpt-oss-20b",
+  apiKey: process.env.NVIDIA_API_KEY,
   temperature: 0,
+  configuration: {
+    baseURL: "https://integrate.api.nvidia.com/v1",
+  },
 });
-
 
 const searchInternetTool = tool(
   searchInternet,
@@ -22,21 +21,20 @@ const searchInternetTool = tool(
     name: "searchInternet",
     description: "use this tool to get the latest information from the internet",
     schema: z.object({
-      query: z.string().describe("The search query to look up to the internet")
-    })
-
+      query: z.string().describe("The search query to look up to the internet"),
+    }),
   }
-)
+);
 
 const agent = createAgent({
   model: model,
-  tools: [searchInternetTool]
-})
+  tools: [searchInternetTool],
+});
 
 export async function generateResponse(messages) {
   const response = await agent.invoke({
     messages: [
-     new SystemMessage(`
+      new SystemMessage(`
 You MUST use the searchInternet tool for:
 - latest news
 - current events
@@ -45,7 +43,6 @@ You MUST use the searchInternet tool for:
 
 Do not answer from memory.
 `),
-
       ...messages.map((msg) => {
         if (msg.role === "user") {
           return new HumanMessage(msg.content);

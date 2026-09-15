@@ -1,26 +1,40 @@
-import Groq from "groq-sdk";
+import OpenAI from "openai";
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
+const nvidia = new OpenAI({
+  apiKey: process.env.NVIDIA_API_KEY,
+  baseURL: "https://integrate.api.nvidia.com/v1",
 });
 
 export async function generateGroqResponse(messages) {
   try {
-    const groqMessages = messages.map((msg) => ({
+    console.log("=== NVIDIA (Nemotron) DEBUG ===");
+    console.log("API Key exists:", !!process.env.NVIDIA_API_KEY);
+    console.log("API Key length:", process.env.NVIDIA_API_KEY?.length || 0);
+    console.log("Messages count:", messages.length);
+
+    const nvidiaMessages = messages.map((msg) => ({
       role: msg.role === "user" ? "user" : "assistant",
       content: msg.content,
     }));
 
-    const chatCompletion = await groq.chat.completions.create({
-      messages: groqMessages,
-      model: "llama-3.3-70b-versatile", 
+    console.log("Sending request to NVIDIA API...");
+
+    const chatCompletion = await nvidia.chat.completions.create({
+      messages: nvidiaMessages,
+      model: "nvidia/nemotron-3.5-lightning-30b-a3b",
       temperature: 0.7,
       max_tokens: 1024,
     });
 
+    console.log("✅ NVIDIA response received successfully!");
     return chatCompletion.choices[0]?.message?.content || "No response";
   } catch (error) {
-    console.error("Groq API Error:", error.message);
-    throw new Error(`Groq API failed: ${error.message}`);
+    console.error("=== NVIDIA ERROR DETAILS ===");
+    console.error("Error Status:", error.status || "No status");
+    console.error("Error Message:", error.message);
+    console.error("Error Code:", error.code || "No code");
+    console.error("Full Error:", JSON.stringify(error, null, 2));
+
+    throw new Error(`NVIDIA API failed: ${error.message}`);
   }
 }

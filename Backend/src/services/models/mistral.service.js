@@ -1,14 +1,19 @@
-import { ChatMistralAI } from "@langchain/mistralai";
+
+import { ChatOpenAI } from "@langchain/openai";
+
 import {
   HumanMessage,
   SystemMessage,
   AIMessage,
 } from "@langchain/core/messages";
 
-const model = new ChatMistralAI({
-  model: "mistral-large-latest",
-  apiKey: process.env.MISTRAL_API_KEY,
+const model = new ChatOpenAI({
+  model: "nvidia/llama-3.1-nemotron-70b-instruct",
+  apiKey: process.env.NVIDIA_API_KEY,
   temperature: 0,
+  configuration: {
+    baseURL: "https://integrate.api.nvidia.com/v1",
+  },
 });
 
 export async function generateMistralResponse(messages) {
