@@ -33,6 +33,6 @@ app.use("/api/chats", chatRouter);
 app.use("/api/ai", imageRouter);
 app.use("/api/documents", documentRouter); 
 app.use("/api/agent", agentRouter);
-app.use("/api/payment", paymentRouter);  // ← NEW
+app.use("/api/payment", paymentRouter);  
 
 export default app;
