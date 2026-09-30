@@ -92,8 +92,6 @@ export const webSearch = async (query) => {
 };
 
 export const generateEmail = async (data) => {
-  // If data is a string, send it as recipient
-  // If data is an object, send as is
   const payload = typeof data === 'string' 
     ? { recipient: data, topic: "" } 
     : data;
@@ -113,7 +111,6 @@ export const summarizeYouTube = async (url) => {
 };
 
 export const saveBookmark = async (data) => {
-  // If data is a string, parse it into an object
   let payload = data;
   
   if (typeof data === 'string') {
@@ -127,7 +124,6 @@ export const saveBookmark = async (data) => {
         tags: []
       };
     } else {
-      // If only URL is provided, use URL as title
       payload = {
         title: parts[0] || data,
         url: data,

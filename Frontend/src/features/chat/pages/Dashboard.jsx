@@ -21,7 +21,6 @@ import Sidebar from "../component/Sidebar.jsx";
 import ChatInputBar from "../component/ChatInputBar.jsx";
 import { useMessageHandling } from "../hooks/useMessageHandling";
 
-// Memoized Markdown Components
 const markdownComponents = {
   code({ inline, className, children, ...props }) {
     if (inline) {
@@ -44,10 +43,9 @@ const markdownComponents = {
   },
 };
 
-// Memoized Message Component
 const MessageItem = React.memo(({ message, index, onToggleSpeech, onCopyText, speechState, copiedMessageIndex }) => {
   const isUser = message.role === "user";
-  
+
   return (
     <div className={`flex flex-col group ${isUser ? "items-end" : "items-start"}`}>
       {!isUser && (
@@ -135,17 +133,15 @@ const MessageItem = React.memo(({ message, index, onToggleSpeech, onCopyText, sp
   );
 });
 
-// Skeleton Loading Component
 const ChatSkeleton = () => (
   <div className="flex-1 overflow-y-auto px-4 pt-20">
     <div className="max-w-3xl mx-auto py-6 space-y-6">
       {[1, 2, 3].map((i) => (
         <div key={i} className={`flex ${i % 2 === 0 ? 'items-end' : 'items-start'}`}>
-          <div className={`max-w-[80%] rounded-2xl p-4 ${
-            i % 2 === 0 
-              ? 'bg-gradient-to-br from-orange-500/50 to-orange-600/50' 
+          <div className={`max-w-[80%] rounded-2xl p-4 ${i % 2 === 0
+              ? 'bg-gradient-to-br from-orange-500/50 to-orange-600/50'
               : 'bg-white/5'
-          } animate-pulse`}>
+            } animate-pulse`}>
             <div className="h-4 bg-white/20 rounded w-32"></div>
             <div className="space-y-2 mt-2">
               <div className="h-3 bg-white/20 rounded w-48"></div>
@@ -159,7 +155,6 @@ const ChatSkeleton = () => (
   </div>
 );
 
-// Smooth Loading Spinner Component
 const LoadingSpinner = ({ message = "Loading..." }) => (
   <div className="flex h-screen bg-black text-white items-center justify-center">
     <div className="flex flex-col items-center gap-6">
@@ -183,7 +178,6 @@ export default function Home() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // Redux Selectors
   const chats = useSelector((state) => state.chat.chats);
   const currentChatId = useSelector((state) => state.chat.currentChatId);
   const isAiThinking = useSelector((state) => state.chat.isAiThinking);
@@ -191,7 +185,6 @@ export default function Home() {
   const user = useSelector((state) => state.auth.user);
   const [isUserLoading, setIsUserLoading] = useState(true);
 
-  // Hooks
   const {
     handleSendMessage,
     handleGetChats,
@@ -207,7 +200,6 @@ export default function Home() {
     handleLogout, // NEW: Import logout handler
   } = useChats();
 
-  // Local State
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [plan, setPlanState] = useState("free");
   const [searchesUsed, setSearchesUsed] = useState(0);
@@ -224,7 +216,6 @@ export default function Home() {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // NEW: Logout confirm state
 
-  // Refs
   const chatEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const loadTimeoutRef = useRef(null);
@@ -252,7 +243,6 @@ export default function Home() {
     handleFileUpload: handleFileUploadHook,
   } = useMessageHandling();
 
-  // Memoized values
   const activeChat = useMemo(() => currentChatId ? chats[currentChatId] : null, [chats, currentChatId]);
   const hasMessages = useMemo(() => activeChat?.messages?.length > 0, [activeChat]);
   const showChatView = useMemo(() => hasMessages || !!pendingUserMessage, [hasMessages, pendingUserMessage]);
@@ -260,7 +250,6 @@ export default function Home() {
     (a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated)
   ), [chats]);
 
-  // CSS Animation
   useEffect(() => {
     const style = document.createElement('style');
     style.textContent = `
@@ -286,7 +275,6 @@ export default function Home() {
     return () => style.remove();
   }, []);
 
-  // Type message effect
   const typeMessage = useCallback(async (text) => {
     setIsTyping(true);
     setTypingMessage("");
@@ -308,7 +296,6 @@ export default function Home() {
     }
   }, [isUserScrolling]);
 
-  // Scroll handlers
   const handleScroll = useCallback(() => {
     const container = messagesContainerRef.current;
     if (container) {
@@ -320,7 +307,6 @@ export default function Home() {
     }
   }, []);
 
-  // Scroll to bottom effect
   useEffect(() => {
     if (shouldScrollToBottom) {
       const container = messagesContainerRef.current;
@@ -342,7 +328,6 @@ export default function Home() {
     }
   }, [isAiThinking, isUserScrolling]);
 
-  // Load initial data in parallel
   useEffect(() => {
     const loadInitialData = async () => {
       setIsUserLoading(true);
@@ -383,7 +368,6 @@ export default function Home() {
     };
   }, [dispatch, handleGetChats]);
 
-  // Update new chat status
   useEffect(() => {
     if (!activeChat?.messages || activeChat.messages.length === 0) {
       setIsNewChat(true);
@@ -392,21 +376,18 @@ export default function Home() {
     }
   }, [activeChat]);
 
-  // User loading state
   useEffect(() => {
     if (user && (user.username || user.email)) {
       setIsUserLoading(false);
     }
   }, [user]);
 
-  // Clean up speech on unmount
   useEffect(() => {
     return () => {
       window.speechSynthesis?.cancel();
     };
   }, [currentChatId]);
 
-  // Socket connection
   useEffect(() => {
     if (!currentChatId) return;
 
@@ -423,7 +404,6 @@ export default function Home() {
     };
   }, [currentChatId, dispatch]);
 
-  // Handlers
   const handleNewChat = useCallback(() => {
     dispatch(setCurrentChatId(null));
     setMessage("");
@@ -437,17 +417,17 @@ export default function Home() {
   const handleSelectChat = useCallback(async (chatId) => {
     setIsLoadingChat(true);
     setShowSkeleton(true);
-    
+
     try {
       dispatch(setCurrentChatId(chatId));
-      
-      const timeoutPromise = new Promise((_, reject) => 
+
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Timeout loading messages')), 10000)
       );
-      
+
       const messagesPromise = handleGetMessages(chatId);
       await Promise.race([messagesPromise, timeoutPromise]);
-      
+
       setIsPlusMenuOpen(false);
       setIsNewChat(false);
     } catch (error) {
@@ -557,16 +537,35 @@ export default function Home() {
       switch (action) {
         case 'webSearch': {
           const searchResult = await handleWebSearch(userMessage);
-          displayMessage = typeof searchResult === 'string' 
-            ? searchResult 
+          displayMessage = typeof searchResult === 'string'
+            ? searchResult
             : searchResult?.summary || searchResult?.message || JSON.stringify(searchResult);
           break;
         }
         case 'jobSearch': {
-          const jobResult = await handleSearchJobs(userMessage);
-          displayMessage = typeof jobResult === 'string'
-            ? jobResult
-            : jobResult?.message || jobResult?.summary || JSON.stringify(jobResult);
+          const parts = userMessage.split(',').map(s => s.trim());
+          const query = parts[0] || userMessage;
+          const location = parts[1] || '';
+
+          const jobResult = await handleSearchJobs({ query, location });
+
+          if (jobResult.success && jobResult.jobs) {
+            displayMessage = `💼 **${jobResult.total} Jobs Found**\n\n`;
+            jobResult.jobs.forEach((job, i) => {
+              displayMessage += `${i + 1}. **${job.title}** at **${job.company}**\n`;
+              displayMessage += `   📍 ${job.location}\n`;
+              displayMessage += `   💰 ${job.salary}\n`;
+              displayMessage += `   📝 ${job.description?.substring(0, 150)}...\n`;
+              displayMessage += `   🔗 [Apply Now](${job.applyUrl})\n\n`;
+            });
+            if (jobResult.plan === 'free') {
+              setSearchesUsed(jobResult.searchesUsed);
+              if (jobResult.searchesUsed >= 2) setShowUpgradeCard(true);
+              displayMessage += `\n📊 **Today's Usage:** ${jobResult.searchesUsed}/${jobResult.limit} searches used`;
+            }
+          } else {
+            displayMessage = jobResult?.message || "No jobs found. Please try a different query.";
+          }
           break;
         }
         case 'generateEmail': {
@@ -657,6 +656,8 @@ export default function Home() {
     const trimmedMessage = message.trim();
     if (!trimmedMessage) return;
 
+    
+
     setMessage("");
 
     if (selectedMode) {
@@ -675,6 +676,8 @@ export default function Home() {
 
     const currentChat = chats[currentChatId];
     const hasDocument = currentChat?.documentId;
+    console.log("🔍 handleSubmit — currentChat:", currentChat);
+  console.log("🔍 documentId:", currentChat?.documentId);
 
     if (currentChatId) {
       dispatch(addNewMessage({
@@ -719,7 +722,6 @@ export default function Home() {
     return modes[selectedMode] || "Ask anything...";
   }, [selectedMode]);
 
-  // Loading States
   if (isUserLoading || !initialLoadComplete) {
     return <LoadingSpinner message="Setting up your workspace..." />;
   }
@@ -753,7 +755,6 @@ export default function Home() {
           />
         )}
 
-        {/* Header */}
         <div className="absolute top-0 left-0 right-0 z-20 px-6 py-4 flex items-center justify-between bg-black/30 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <h2 className="font-bold text-xl text-white">
@@ -767,7 +768,6 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* User Name Display */}
             <span className="text-sm text-slate-300 bg-white/[0.06] px-3 py-1.5 rounded-lg">
               👤 {user?.username || "User"}
             </span>
@@ -776,7 +776,7 @@ export default function Home() {
               className={`text-sm px-3 py-1.5 rounded-full font-medium tracking-wide ${plan === 'pro'
                 ? 'bg-orange-500/15 text-orange-400'
                 : 'bg-white/[0.06] text-slate-400'
-              }`}
+                }`}
             >
               {plan === 'pro' ? 'PRO' : 'FREE'}
             </span>
@@ -809,7 +809,6 @@ export default function Home() {
               <option className="bg-[#0a0a0f]" value="groq">Groq</option>
             </select>
 
-            {/* Logout Button */}
             <button
               onClick={() => setShowLogoutConfirm(true)}
               className="text-sm px-3.5 py-1.5 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all font-medium"
@@ -819,7 +818,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Logout Confirmation Modal */}
         {showLogoutConfirm && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
             <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-8 max-w-md w-full">
@@ -843,7 +841,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Main Content */}
         {isLoadingChat || showSkeleton ? (
           <ChatSkeleton />
         ) : showChatView ? (

@@ -3,7 +3,6 @@ import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const bookmarkApi = {
-  // Save a bookmark
   saveBookmark: async (bookmarkData) => {
     try {
       const response = await axios.post(
@@ -17,7 +16,6 @@ export const bookmarkApi = {
     }
   },
 
-  // Get all bookmarks
   getBookmarks: async () => {
     try {
       const response = await axios.get(
@@ -30,7 +28,6 @@ export const bookmarkApi = {
     }
   },
 
-  // Delete a bookmark
   deleteBookmark: async (bookmarkId) => {
     try {
       const response = await axios.delete(

@@ -42,7 +42,6 @@ async function handleGetMe() {
 
     const data = await getMe();
 
-    console.log("GET ME RESPONSE:", data);
 
     dispatch(setUser(data.user)); // 🔥 IMPORTANT FIX
   } catch (error) {

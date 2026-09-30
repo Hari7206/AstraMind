@@ -7,23 +7,18 @@ const nvidia = new OpenAI({
 
 export async function generateGroqResponse(messages) {
   try {
-    console.log("=== NVIDIA (Nemotron) DEBUG ===");
-    console.log("API Key exists:", !!process.env.NVIDIA_API_KEY);
-    console.log("API Key length:", process.env.NVIDIA_API_KEY?.length || 0);
-    console.log("Messages count:", messages.length);
 
     const nvidiaMessages = messages.map((msg) => ({
       role: msg.role === "user" ? "user" : "assistant",
       content: msg.content,
     }));
 
-    console.log("Sending request to NVIDIA API...");
 
     const chatCompletion = await nvidia.chat.completions.create({
       messages: nvidiaMessages,
       model: "nvidia/nemotron-3.5-lightning-30b-a3b",
       temperature: 0.7,
-      max_tokens: 1024,
+     max_tokens: 2048,  
     });
 
     console.log("✅ NVIDIA response received successfully!");

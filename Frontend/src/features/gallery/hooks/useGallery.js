@@ -12,8 +12,8 @@ export const useGallery = () => {
       const data = await getGalleryImages();
       setImages(data.images || []);
 
-    } catch (err) {
-      console.log(err.message);
+    } catch {
+      setImages([]);
     } finally {
       setLoading(false);
     }

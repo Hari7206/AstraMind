@@ -28,7 +28,8 @@ import {
     createNewChat,
     addNewMessage,
     addMessages,
-    setAiThinking
+    setAiThinking ,
+    setDocumentId,
 } from "../chat.slice.js";
 
 import { useCallback } from "react";
@@ -164,46 +165,47 @@ export const useChats = () => {
         }
     }, []);
 
-    const handleUploadDocument = useCallback(async (file, chatId) => {
-        try {
-            dispatch(setLoading(true));
-            const data = await uploadDocument(file, chatId);
+   const handleUploadDocument = useCallback(async (file, chatId) => {
+  try {
+    dispatch(setLoading(true));
+    const data = await uploadDocument(file, chatId);
 
-            if (data.success && data.chatId) {
-                if (!chatId) {
-                    dispatch(createNewChat({
-                        chatId: data.chatId,
-                        title: data.document.fileName,
-                    }));
-                    dispatch(setCurrentChatId(data.chatId));
-                }
+    if (data.success && data.chatId) {
+      dispatch(createNewChat({
+        chatId: data.chatId,
+        title: data.document.fileName,
+      }));
+      dispatch(setCurrentChatId(data.chatId));
 
-                if (data.userMessage) {
-                    dispatch(addNewMessage({
-                        chatId: data.chatId,
-                        ...formatMessage(data.userMessage),
-                    }));
-                }
+      dispatch(setDocumentId({
+        chatId: data.chatId,
+        documentId: data.document.id,
+      }));
 
-                if (data.aiMessage) {
-                    dispatch(addNewMessage({
-                        chatId: data.chatId,
-                        ...formatMessage(data.aiMessage),
-                    }));
-                }
+      if (data.userMessage) {
+        dispatch(addNewMessage({
+          chatId: data.chatId,
+          ...formatMessage(data.userMessage),
+        }));
+      }
 
-                const updatedChats = await getChats();
-                dispatch(setChats(updatedChats.chats || []));
-            }
+      if (data.aiMessage) {
+        dispatch(addNewMessage({
+          chatId: data.chatId,
+          ...formatMessage(data.aiMessage),
+        }));
+      }
 
-            return data;
-        } catch (error) {
-            dispatch(setError(error.message));
-            throw error;
-        } finally {
-            dispatch(setLoading(false));
-        }
-    }, [dispatch]);
+    }
+
+    return data;
+  } catch (error) {
+    dispatch(setError(error.message));
+    throw error;
+  } finally {
+    dispatch(setLoading(false));
+  }
+}, [dispatch]);
 
     const handleChatWithDocument = useCallback(async (documentId, question, chatId) => {
         try {
@@ -331,7 +333,6 @@ export const useChats = () => {
             dispatch(setLoading(true));
             const result = await saveBookmark(data);
 
-            // Return a user-friendly message
             return {
                 success: true,
                 message: `✅ Bookmark saved: "${result.bookmark?.title || 'Unknown'}"`,

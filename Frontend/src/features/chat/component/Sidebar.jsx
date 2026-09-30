@@ -67,7 +67,6 @@ export default function Sidebar({
     <div
       className={`${sidebarOpen ? "w-80" : "w-16"} flex flex-col bg-[#0a0a0f] border-r border-white/5 transition-all duration-300 h-screen flex-shrink-0`}
     >
-      {/* Header */}
       <div className={`p-4 flex ${sidebarOpen ? "justify-between" : "justify-center"} items-center flex-shrink-0 border-b border-white/5`}>
         {sidebarOpen && (
           <span className="font-bold text-xl tracking-wide text-white">
@@ -83,7 +82,6 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Action Buttons */}
       <div className="px-3 py-3 flex flex-col gap-2 flex-shrink-0">
         <button
           type="button"
@@ -113,7 +111,6 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Chat List - Only show when sidebar is open */}
       {sidebarOpen && (
         <div className="flex-1 overflow-y-auto px-3 pb-2 scrollbar-hide">
           {Object.entries(groups).map(([key, chats]) => {
@@ -150,10 +147,8 @@ export default function Sidebar({
         </div>
       )}
 
-      {/* Spacer to push user profile to bottom */}
       {!sidebarOpen && <div className="flex-1"></div>}
 
-      {/* User Profile */}
       <div className="border-t border-white/5 p-3 flex-shrink-0">
         <div className={`flex items-center ${sidebarOpen ? "gap-3" : "justify-center"}`}>
           <div className="w-9 h-9 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 flex items-center justify-center text-white font-bold text-base flex-shrink-0">

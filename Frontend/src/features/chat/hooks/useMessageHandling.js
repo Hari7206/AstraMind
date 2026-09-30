@@ -1,4 +1,3 @@
-// hooks/useMessageHandling.js
 import { useState, useRef, useEffect } from "react";
 
 export function useMessageHandling() {
@@ -49,7 +48,6 @@ export function useMessageHandling() {
     };
   }, []);
 
-  // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (plusMenuRef.current && !plusMenuRef.current.contains(event.target)) {
@@ -190,7 +188,7 @@ export function useMessageHandling() {
   };
 
   return {
-   
+
     message,
     setMessage,
     isListening,
@@ -204,7 +202,7 @@ export function useMessageHandling() {
     speechState,
     fileInputRef,
     plusMenuRef,
-    
+
     startListening,
     handleCancelSpeech,
     handleAcceptSpeech,

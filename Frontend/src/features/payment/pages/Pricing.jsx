@@ -89,14 +89,12 @@ export default function Pricing() {
 
   return (
     <div className="pricing-page">
-      {/* Ambient glow */}
       <div className="ambient-glow-container">
         <div className="ambient-glow orb-1"></div>
         <div className="ambient-glow orb-2"></div>
       </div>
 
       <div className="pricing-content">
-        {/* Header */}
         <div className="pricing-header">
           <span className="brand-text">
             ASTRA<span className="brand-highlight">MIND</span>
@@ -105,9 +103,7 @@ export default function Pricing() {
           <p className="page-subtitle">Upgrade to Pro for unlimited job searches</p>
         </div>
 
-        {/* Plans Grid */}
         <div className="plans-grid">
-          {/* Free Plan */}
           <div className="plan-card plan-free">
             <div className="card-shimmer"></div>
             <div className="plan-content">
@@ -142,11 +138,9 @@ export default function Pricing() {
             </div>
           </div>
 
-          {/* Pro Plan */}
           <div className="plan-card plan-pro">
             <div className="card-shimmer"></div>
             
-            {/* Popular badge */}
             <div className="popular-badge-wrapper">
               <div className="popular-badge">POPULAR</div>
             </div>
@@ -197,7 +191,6 @@ export default function Pricing() {
           </div>
         </div>
 
-        {/* Back button */}
         <div className="back-button">
           <button onClick={() => navigate("/")} className="back-btn">
             ← Back to Dashboard

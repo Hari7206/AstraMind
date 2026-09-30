@@ -20,7 +20,6 @@ export async function checkUsage(req, res, next) {
       return next();
     }
 
-    // Free user: Check if new day
     if (user.subscription.lastSearchDate !== today) {
   
       user.subscription.jobSearchesToday = 0;

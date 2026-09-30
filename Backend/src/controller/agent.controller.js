@@ -22,29 +22,16 @@ export async function webSearch(req, res) {
     const results = await searchInternet({ query });
     const parsedResults = JSON.parse(results);
 
-    // Better prompt for better summaries
-    const summary = await generateGroqResponse([
-      {
-        role: "system",
-        content: `You are a helpful search assistant. Provide accurate, well-structured answers based ONLY on the search results.
-
-        RULES:
-        1. Start with a brief, clear answer
-        2. Use bullet points for key information
-        3. Cite sources at the end
-        4. If information is not in search results, say so
-        5. Keep it concise and useful`
-      },
-      {
-        role: "user",
-        content: `Search Query: "${query}"
-
-        Search Results:
-        ${JSON.stringify(parsedResults, null, 2)}
-
-        Provide a clear, structured answer based on these results:`
-      }
-    ]);
+  const summary = await generateGroqResponse([
+  {
+    role: "system",
+    content: "You are a YouTube video summarizer. Summarize the video content based on the transcript provided."
+  },
+  {
+    role: "user",
+    content: `Here is the transcript of the YouTube video:\n\n${fullText.substring(0, 8000)}\n\nProvide a detailed summary...`
+  }
+]);
 
     return res.status(200).json({
       success: true,
@@ -105,24 +92,20 @@ export async function generateEmail(req, res) {
 
     console.log("📧 Received:", { recipient, topic });
 
-    // If recipient is raw text and no topic, parse it
     if (recipient && !topic) {
       const text = recipient;
       console.log("📝 Parsing raw text:", text);
       
-      // Try to extract email from text
       const emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
       if (emailMatch) {
         recipient = emailMatch[1];
         topic = text.replace(emailMatch[1], '').trim();
-        // Remove common phrases
         topic = topic.replace(/^create email about\s*/i, '');
         topic = topic.replace(/^write email about\s*/i, '');
         topic = topic.replace(/^send email about\s*/i, '');
         topic = topic.replace(/^email about\s*/i, '');
         topic = topic.trim();
       } else {
-        // If no email found, use default
         recipient = "recipient@example.com";
         topic = text;
       }
@@ -164,7 +147,6 @@ Output ONLY the email, nothing else.`;
       }
     ]);
 
-    // Extract subject and body
     const lines = emailContent.split('\n');
     let subject = lines.find(line => line.toLowerCase().includes('subject:')) || 'No subject';
     subject = subject.replace(/subject:?\s*/i, '').trim();
@@ -173,7 +155,6 @@ Output ONLY the email, nothing else.`;
     const bodyLines = subjectIndex !== -1 ? lines.slice(subjectIndex + 1) : lines;
     let body = bodyLines.join('\n').trim();
 
-    // Clean up extra text
     body = body
       .replace(/^Here is (a|the) (professional )?email.*?:\s*/i, '')
       .replace(/^Here you go:\s*/i, '')
@@ -222,7 +203,6 @@ export async function summarizeYouTube(req, res) {
 
     console.log("📺 Getting transcript for:", videoId);
 
-    // ✅ This is the correct way
     const transcript = await YoutubeTranscript.fetchTranscript(videoId);
     
     if (!transcript || transcript.length === 0) {
@@ -232,10 +212,8 @@ export async function summarizeYouTube(req, res) {
       });
     }
 
-    // Combine transcript text
     const fullText = transcript.map(item => item.text).join(' ');
 
-    // Generate summary using Groq
     const summary = await generateGroqResponse([
       {
         role: "system",
@@ -258,7 +236,6 @@ export async function summarizeYouTube(req, res) {
   } catch (error) {
     console.error("YouTube summary error:", error.message);
     
-    // Fallback: Try to get video metadata
     try {
       console.log("🔄 Falling back to YouTube API...");
       
@@ -318,7 +295,6 @@ function extractYouTubeId(url) {
 
 export async function getBookmarks(req, res) {
   try {
-    // Fix: Use _id if id doesn't exist
     const userId = req.user.id || req.user._id;
     
     if (!userId) {
@@ -443,7 +419,6 @@ export async function searchJobs(req, res) {
 
     console.log("🔍 Searching Google Jobs for:", searchQuery);
 
-    // Build Google Jobs search URL
     const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery + ' jobs')}&ibp=htl;jobs`;
 
     const response = await axios.get(searchUrl, {
@@ -455,7 +430,6 @@ export async function searchJobs(req, res) {
     const $ = cheerio.load(response.data);
     const jobs = [];
 
-    // Parse job listings from Google Jobs
     $('.iFjolc').each((index, element) => {
       if (jobs.length >= 10) return;
 
@@ -463,7 +437,6 @@ export async function searchJobs(req, res) {
       const company = $(element).find('.vNEEBe').text().trim() || 'Unknown Company';
       const location = $(element).find('.Qk80Jf').text().trim() || 'India';
       
-      // Extract apply link
       let applyUrl = $(element).find('a').attr('href') || '#';
       if (applyUrl && !applyUrl.startsWith('http')) {
         applyUrl = `https://www.google.com${applyUrl}`;
@@ -484,11 +457,9 @@ export async function searchJobs(req, res) {
       });
     });
 
-    // If Google Jobs scraping fails, use Mock Jobs (for testing)
     if (jobs.length === 0) {
       console.log("⚠️ No jobs from Google, using mock data...");
       
-      // Sample Indian jobs (for testing)
       const mockJobs = [
         {
           id: 'mock_1',
@@ -547,7 +518,6 @@ export async function searchJobs(req, res) {
         }
       ];
 
-      // Return mock jobs
       if (user.subscription.plan === 'free') {
         user.subscription.jobSearchesToday += 1;
         await user.save();
@@ -564,7 +534,6 @@ export async function searchJobs(req, res) {
       });
     }
 
-    // Increment search counter for free users
     if (user.subscription.plan === 'free') {
       user.subscription.jobSearchesToday += 1;
       await user.save();
@@ -583,7 +552,6 @@ export async function searchJobs(req, res) {
   } catch (error) {
     console.error("Job search error:", error.message);
     
-    // Return mock jobs as fallback
     try {
       const user = req.userData;
       const mockJobs = [

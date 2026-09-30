@@ -11,14 +11,11 @@ export const initSocket = (httpServer) => {
     });
 
 
-    console.log("Socket.io server initialized");
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
 
   socket.on("join-chat", (chatId) => {
     if (!chatId) return;
     socket.join(chatId);
-    console.log(`Joined chat room: ${chatId}`);
   });
 });
 };

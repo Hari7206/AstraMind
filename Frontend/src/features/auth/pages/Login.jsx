@@ -41,19 +41,15 @@ export default function Login() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-black text-white px-4 overflow-hidden">
-      {/* Subtle ambient glow - restrained, top-centered only */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[30rem] h-[20rem] rounded-full bg-orange-600/10 blur-[100px] ambient-glow" />
       </div>
 
       <div className="relative z-10 w-full max-w-md">
-        {/* Outer faint border frame */}
         <div className="rounded-[2rem] border border-white/5 p-1.5 card-wrapper">
           <div className="relative bg-white/[0.04] backdrop-blur-2xl border border-white/10 rounded-[1.75rem] shadow-2xl overflow-hidden card-container">
-            {/* Top glow accent inside the card */}
             <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-48 rounded-full bg-orange-500/20 blur-[80px]" />
 
-            {/* Animated glass shine sweep - fixed version */}
             <div className="shine-overlay"></div>
 
             <div className="relative p-8 z-10">
@@ -70,7 +66,6 @@ export default function Login() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Email */}
                 <div>
                   <label className="block text-xs text-white/40 mb-1.5">
                     Email
@@ -87,7 +82,6 @@ export default function Login() {
                   </div>
                 </div>
 
-                {/* Password */}
                 <div>
                   <label className="block text-xs text-white/40 mb-1.5">
                     Password
@@ -102,7 +96,6 @@ export default function Login() {
                       required
                     />
 
-                    {/* Show/hide password toggle */}
                     <button
                       type="button"
                       onClick={() => setShowPassword((p) => !p)}
@@ -125,7 +118,6 @@ export default function Login() {
                   </div>
                 </div>
 
-                {/* Sign in button */}
                 <button
                   type="submit"
                   disabled={submitting}

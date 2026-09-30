@@ -24,6 +24,14 @@ export default function ChatInputBar({
 }) {
   return (
     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto w-full">
+      <input
+    type="file"
+    ref={fileInputRef}
+    onChange={handleFileUpload}
+    accept=".pdf,.docx,.txt"
+    className="hidden"
+  />
+
       <div className="relative">
         {isNewChat && (
           <div
@@ -32,7 +40,6 @@ export default function ChatInputBar({
         )}
 
         <div className="relative flex flex-col bg-[#1a1a1a] rounded-3xl p-4 ring-0">
-          {/* Text Input - Top */}
           <div className="flex-1 relative flex items-center">
             {selectedMode && (
               <div className="absolute left-3 flex items-center gap-2 z-10">
@@ -67,10 +74,8 @@ export default function ChatInputBar({
             />
           </div>
 
-          {/* Bottom Row - Options & Send Button */}
           <div className="flex items-center justify-between pt-3">
             <div className="flex items-center gap-1">
-              {/* Plus Menu Button */}
               <div ref={plusMenuRef} className="relative">
                 <button
                   type="button"
@@ -113,7 +118,6 @@ export default function ChatInputBar({
                 )}
               </div>
 
-              {/* Image Button */}
               <button
                 type="button"
                 onClick={handleImageClick}
@@ -123,7 +127,6 @@ export default function ChatInputBar({
                 Image
               </button>
 
-              {/* Voice Input Button */}
               {!isListening ? (
                 <button
                   type="button"

@@ -8,15 +8,13 @@ export const initializeSocketConnection = (chatId, dispatch, actions) => {
   });
 
   socket.on("connect", () => {
-    console.log("Connected:", socket.id);
 
     
     socket.emit("join-chat", chatId);
   });
 
   
-  socket.on("ai-start", ({ chatId }) => {
-    console.log("AI started for chat:", chatId);
+  socket.on("ai-start", () => {
     dispatch(actions.setAiThinking(true));
   });
 
@@ -26,8 +24,7 @@ export const initializeSocketConnection = (chatId, dispatch, actions) => {
   });
 
 
-  socket.on("ai-done", ({ chatId }) => {
-    console.log("AI finished for chat:", chatId);
+  socket.on("ai-done", () => {
     dispatch(actions.setAiThinking(false));
   });
 

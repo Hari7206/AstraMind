@@ -1,11 +1,8 @@
-/* Home.css - Additional styles for the Home component */
 
-/* Smooth transitions */
 .transition-all {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Prose styling for markdown */
 .prose {
   color: rgba(255, 255, 255, 0.9);
 }
@@ -63,7 +60,6 @@
 .prose h3 { font-size: 1.125rem; }
 .prose h4 { font-size: 1rem; }
 
-/* Custom scrollbar for the app */
 ::-webkit-scrollbar {
   width: 4px;
 }

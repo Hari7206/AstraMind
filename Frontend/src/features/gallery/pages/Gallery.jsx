@@ -6,7 +6,6 @@ export default function Gallery() {
   const navigate = useNavigate();
   const { images, fetchImages, loading } = useGallery();
 
-  // STEP 5.1 — STATE FOR SELECTED IMAGE
   const [selectedImage, setSelectedImage] = useState(null);
 
   useEffect(() => {
@@ -15,7 +14,6 @@ export default function Gallery() {
 
   return (
     <div className="relative min-h-screen bg-[#07080c] text-slate-100">
-      {/* Ambient background glow */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -top-32 -left-32 w-[32rem] h-[32rem] rounded-full bg-orange-600/20 blur-[120px]" />
         <div className="absolute top-1/3 -right-40 w-[36rem] h-[36rem] rounded-full bg-blue-600/20 blur-[140px]" />
@@ -23,7 +21,6 @@ export default function Gallery() {
       </div>
 
       <div className="relative z-10 p-6 max-w-7xl mx-auto">
-        {/* Back Button */}
         <button
           type="button"
           onClick={() => navigate("/")}
@@ -36,7 +33,6 @@ export default function Gallery() {
           Your Image Gallery
         </h1>
 
-        {/* LOADING UI UPGRADE (Skeleton Screen) */}
         {loading && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {Array(6)
@@ -50,7 +46,6 @@ export default function Gallery() {
           </div>
         )}
 
-        {/* EMPTY STATE */}
         {!loading && images.length === 0 && (
           <div className="text-center text-slate-400 mt-10 p-10 border border-dashed border-white/15 rounded-2xl bg-white/[0.02] backdrop-blur-sm">
             <p className="text-lg font-medium text-slate-200">No images generated yet.</p>
@@ -58,17 +53,14 @@ export default function Gallery() {
           </div>
         )}
 
-        {/* IMAGE CARD UI GRID */}
         {!loading && images.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {images.map((img) => (
-              // STEP 5.2 — MAKE IMAGE CLICKABLE
               <div
                 key={img._id}
                 className="group relative rounded-xl overflow-hidden border border-white/10 bg-white/[0.03] backdrop-blur-sm cursor-pointer transition-shadow hover:shadow-[0_0_30px_-5px] hover:shadow-fuchsia-500/30 hover:border-white/20"
                 onClick={() => setSelectedImage(img)}
               >
-                {/* IMAGE */}
                 <img
                   src={img.fileUrl}
                   alt={img.content}
@@ -76,10 +68,8 @@ export default function Gallery() {
                   loading="lazy"
                 />
 
-                {/* DARK OVERLAY ON HOVER */}
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all duration-300"></div>
 
-                {/* PROMPT TEXT */}
                 <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-gradient-to-t from-black/95 to-transparent">
                   <p className="text-white text-xs line-clamp-2 font-medium">
                     {img.content}
@@ -90,7 +80,6 @@ export default function Gallery() {
           </div>
         )}
 
-        {/* STEP 5.3 — FULLSCREEN MODAL OVERLAY */}
         {selectedImage && (
           <div
             className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -112,9 +101,7 @@ export default function Gallery() {
                 {selectedImage.content}
               </p>
 
-              {/* ACTIONS FOOTER */}
               <div className="flex gap-3 mt-4">
-                {/* DOWNLOAD */}
                 <a
                   href={selectedImage.fileUrl}
                   download={`astramind-${selectedImage._id}.png`}
@@ -125,7 +112,6 @@ export default function Gallery() {
                   Download
                 </a>
 
-                {/* CLOSE */}
                 <button
                   type="button"
                   onClick={() => setSelectedImage(null)}

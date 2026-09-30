@@ -5,7 +5,6 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Load Razorpay script
 export const loadRazorpayScript = () => {
   return new Promise((resolve) => {
     const script = document.createElement("script");
@@ -16,25 +15,21 @@ export const loadRazorpayScript = () => {
   });
 };
 
-// Create Razorpay order (₹50)
 export const createOrder = async () => {
   const response = await api.post("/api/payment/create-order");
   return response.data;
 };
 
-// Verify payment
 export const verifyPayment = async (data) => {
   const response = await api.post("/api/payment/verify", data);
   return response.data;
 };
 
-// Get subscription status
 export const getSubscription = async () => {
   const response = await api.get("/api/payment/subscription");
   return response.data;
 };
 
-// Open Razorpay Checkout
 export const openRazorpayCheckout = (orderData, onSuccess, onFailure) => {
   const options = {
     key: orderData.key,

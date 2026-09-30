@@ -2,20 +2,17 @@ import Razorpay from "razorpay";
 import Subscription from "../model/subscription.model.js";
 import userModel from "../model/user.model.js";
 
-// Initialize Razorpay
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// 1. Create Order
 export async function createOrder(req, res) {
   try {
     console.log("🔍 createOrder called");
     const userId = req.user.id;
     console.log("👤 User ID:", userId);
 
-    // Check existing subscription
     const existingSubscription = await Subscription.findOne({
       user: userId,
       plan: "pro",
@@ -29,7 +26,6 @@ export async function createOrder(req, res) {
       });
     }
 
-    // Create order - RECEIPT MUST BE 40 CHARACTERS OR LESS
     const options = {
       amount: 5000,
       currency: "INR",
@@ -60,7 +56,6 @@ export async function createOrder(req, res) {
   }
 }
 
-// 2. Verify Payment
 export async function verifyPayment(req, res) {
   try {
     const {
@@ -71,7 +66,6 @@ export async function verifyPayment(req, res) {
 
     const userId = req.user.id;
 
-    // Verify signature
     const crypto = await import("crypto");
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto
@@ -86,17 +80,14 @@ export async function verifyPayment(req, res) {
       });
     }
 
-    // Expire any existing active subscriptions
     await Subscription.updateMany(
       { user: userId, status: "active" },
       { status: "expired" }
     );
 
-    // Calculate end date (1 month from now)
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + 1);
 
-    // Create new subscription
     const subscription = await Subscription.create({
       user: userId,
       plan: "pro",
@@ -107,7 +98,6 @@ export async function verifyPayment(req, res) {
       orderId: razorpay_order_id,
     });
 
-    // Update user model
     await userModel.findByIdAndUpdate(userId, {
       "subscription.plan": "pro",
       "subscription.startDate": new Date(),
@@ -131,7 +121,6 @@ export async function verifyPayment(req, res) {
   }
 }
 
-// 3. Get Current Subscription
 export async function getSubscription(req, res) {
   try {
     const userId = req.user.id;

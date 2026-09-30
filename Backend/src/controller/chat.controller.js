@@ -5,10 +5,10 @@ import { getIO } from "../sockets/server.socket.js";
 import messageModel from "../model/message.model.js";
 
 
-// Keep your other existing imports at the top (chatModel, messageModel, generateTitle, getIO, etc.)
 
 export async function sendMessage(req, res) {
   const { message, chat: chatId, model: selectedModel } = req.body;
+    console.log("🚨 NORMAL CHAT HIT — model:", req.body.model);
 const allowedModels = ["mistral", "groq"];
 
 const model = allowedModels.includes(selectedModel)
@@ -154,7 +154,6 @@ export async function saveAgentMessages(req, res) {
     const { chatId, userMessage, aiMessage } = req.body;
     const userId = req.user.id;
 
-    // If no chatId, create a new chat
     let chat = await chatModel.findOne({ _id: chatId, user: userId });
     if (!chat) {
       const title = userMessage.substring(0, 30);
@@ -164,7 +163,6 @@ export async function saveAgentMessages(req, res) {
       });
     }
 
-    // Save user message
     const userMsg = await messageModel.create({
       chat: chat._id,
       content: userMessage,
@@ -172,7 +170,6 @@ export async function saveAgentMessages(req, res) {
       messageType: "text"
     });
 
-    // Save AI message
     const aiMsg = await messageModel.create({
       chat: chat._id,
       content: aiMessage,

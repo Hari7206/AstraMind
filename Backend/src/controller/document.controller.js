@@ -1,6 +1,8 @@
 import Document from "../model/document.model.js";
 import chatModel from "../model/chat.model.js";
 import messageModel from "../model/message.model.js";
+import { generateResponse } from "../services/ai.service.js";
+import { generateGroqResponse } from "../services/models/groq.service.js";
 import {
   extractTextFromFile,
   splitTextIntoChunks,
@@ -8,7 +10,6 @@ import {
   searchDocument,
   removeDocumentEmbeddings
 } from "../services/document.service.js";
-import { generateResponse } from "../services/ai.service.js"; // ✅ FIXED
 import fs from "fs";
 
 export async function uploadDocument(req, res) {
@@ -23,7 +24,6 @@ export async function uploadDocument(req, res) {
       });
     }
 
-    // Validate file type
     const allowedTypes = ["pdf", "docx", "txt"];
     const fileExtension = file.originalname.split(".").pop().toLowerCase();
     const fileType = fileExtension;
@@ -36,7 +36,6 @@ export async function uploadDocument(req, res) {
       });
     }
 
-    // Extract text from file
     const extractedText = await extractTextFromFile(file.path, fileType);
 
     if (!extractedText || extractedText.trim().length === 0) {
@@ -49,7 +48,6 @@ export async function uploadDocument(req, res) {
 
     console.log("📄 Extracted text length:", extractedText.length);
 
-    // Create or get chat
     let chat = null;
     if (chatId) {
       chat = await chatModel.findOne({
@@ -66,11 +64,9 @@ export async function uploadDocument(req, res) {
       });
     }
 
-    // Split text into chunks
     const chunks = splitTextIntoChunks(extractedText);
     console.log("📦 Number of chunks:", chunks.length);
 
-    // Create document record FIRST
     const document = await Document.create({
       chat: chat._id,
       user: req.user.id,
@@ -84,15 +80,12 @@ export async function uploadDocument(req, res) {
 
     console.log("📝 Document created with ID:", document._id.toString());
 
-    // Generate embeddings
     await createDocumentEmbeddings(document._id.toString(), chunks);
     console.log("✅ Embeddings created");
 
-    // Update document status
     document.status = "processed";
     await document.save();
 
-    // Save user message
     const userMessage = await messageModel.create({
       chat: chat._id,
       content: `📄 Uploaded: ${file.originalname}`,
@@ -100,7 +93,6 @@ export async function uploadDocument(req, res) {
       messageType: "text"
     });
 
-    // Save AI confirmation
     const aiMessage = await messageModel.create({
       chat: chat._id,
       content: `✅ Document "${file.originalname}" uploaded successfully! You can now ask questions about it. (${chunks.length} chunks processed)`,
@@ -108,7 +100,6 @@ export async function uploadDocument(req, res) {
       messageType: "text"
     });
 
-    // Clean up temp file
     fs.unlinkSync(file.path);
 
     return res.status(201).json({
@@ -137,6 +128,7 @@ export async function uploadDocument(req, res) {
   }
 }
 export async function chatWithDocument(req, res) {
+   console.log("📄 DOCUMENT CHAT HIT — question:", req.body.question);
   try {
     const { documentId, question, chatId } = req.body;
 
@@ -187,25 +179,19 @@ export async function chatWithDocument(req, res) {
       context = document.content.substring(0, 3000);
       sources = [{ index: 1, text: "Full document content", score: 1 }];
     }
-
- const aiResponse = await generateResponse([
+const aiResponse = await generateGroqResponse([
+  {
+    role: "system",
+    content: "You are a strict document reader. You answer questions ONLY using the provided context. Never output your thinking process. Never say 'here is a thinking process'. Just give the direct answer. If the answer is not in the context, respond exactly with: 'I cannot find this information in the document.'"
+  },
   {
     role: "user",
-    content: `SYSTEM INSTRUCTION: You are a strict document reader. You can ONLY answer using the exact text from the context. If you cannot find the answer, say "I cannot find this information in the document." Never use your training data
-
-IMPORTANT RULES:
-1. ONLY use information from the context below
-2. If the answer is NOT in the context, say: "I cannot find this information in the document."
-3. Do NOT use any external knowledge or training data
-4. Do NOT make up information
-5. Be brief and direct
-
-CONTEXT:
+    content: `CONTEXT:
 ${context}
 
 QUESTION: ${question}
 
-Your answer (based ONLY on the context above):`
+Answer using ONLY the context above. Be brief and direct. Do NOT explain your reasoning. Do NOT say "thinking process". Just answer.`
   }
 ]);
 

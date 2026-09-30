@@ -27,6 +27,7 @@ const chatSlice = createSlice({
                     id: chatId,
                     title: title || "New Chat",
                     messages: [],
+                    documentId: null,
                     lastUpdated: new Date().toISOString(),
                 }
             } else {
@@ -87,27 +88,28 @@ const chatSlice = createSlice({
         },
         setChats: (state, action) => {
             if (action.payload && !Array.isArray(action.payload) && !action.payload.chats) {
-                state.chats = action.payload
-                return
+                state.chats = action.payload;
+                return;
             }
 
             const chats = Array.isArray(action.payload)
                 ? action.payload
-                : action.payload?.chats || []
+                : action.payload?.chats || [];
 
             state.chats = chats.reduce((acc, chat) => {
-                const id = chat._id || chat.id
-                if (!id) return acc
+                const id = chat._id || chat.id;
+                if (!id) return acc;
 
                 acc[id] = {
                     id,
                     title: chat.title || "New Chat",
                     messages: state.chats[id]?.messages || chat.messages || [],
+                    documentId: state.chats[id]?.documentId || chat.documentId || null, // ← ADD THIS
                     lastUpdated: chat.updatedAt || chat.lastUpdated || new Date().toISOString(),
-                }
+                };
 
-                return acc
-            }, {})
+                return acc;
+            }, {});
         },
         setCurrentChatId: (state, action) => {
             state.currentChatId = action.payload
@@ -120,6 +122,11 @@ const chatSlice = createSlice({
         },
         setPlan: (state, action) => {
             state.plan = action.payload;
+        },
+        setDocumentId: (state, action) => {
+            const { chatId, documentId } = action.payload;
+            if (!chatId || !state.chats[chatId]) return;
+            state.chats[chatId].documentId = documentId;
         },
         replaceChatId: (state, action) => {
             const { tempId, realId } = action.payload;
@@ -147,7 +154,8 @@ export const {
     setAiThinking,
     setModel,
     setPlan,
-    replaceChatId
+    replaceChatId,
+    setDocumentId
 } = chatSlice.actions
 
 export default chatSlice.reducer

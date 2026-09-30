@@ -1,4 +1,3 @@
-// routes/agent.routes.js
 import { Router } from "express";
 import { authUser } from "../middleware/auth.middleware.js";
 import { checkUsage } from "../middleware/checkUsage.js";

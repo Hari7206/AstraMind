@@ -70,7 +70,6 @@ function BookmarkCard({ bookmark, onDelete, deleting }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // clipboard unavailable, ignore
     }
   };
 
@@ -178,7 +177,6 @@ export default function Bookmarks() {
 
   useEffect(() => {
     fetchBookmarks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDelete = async (id) => {
@@ -231,16 +229,13 @@ export default function Bookmarks() {
     <div className="flex h-screen bg-black text-white overflow-hidden">
       <div className="flex-1 flex flex-col min-w-0 h-screen bg-black">
 
-        {/* HERO HEADER */}
         <div className="relative flex-shrink-0 overflow-hidden border-b border-white/5">
-          {/* gradient glow */}
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute -top-32 -left-24 w-[380px] h-[380px] bg-orange-500/15 blur-[120px] rounded-full" />
             <div className="absolute -top-24 right-1/4 w-[300px] h-[300px] bg-sky-500/10 blur-[120px] rounded-full" />
             <div className="absolute top-0 right-0 w-[260px] h-[260px] bg-violet-500/10 blur-[120px] rounded-full" />
           </div>
 
-          {/* BACK BUTTON */}
           <div className="relative px-6 lg:px-8 pt-5">
             <button
               onClick={() => navigate(-1)}
@@ -273,7 +268,6 @@ export default function Bookmarks() {
                 or jump straight to the source.
               </p>
 
-              {/* CENTERED SEARCH */}
               <div className="relative w-full max-w-2xl mt-7">
                 <Search
                   size={18}
@@ -288,7 +282,6 @@ export default function Bookmarks() {
                 />
               </div>
 
-              {/* STATS STRIP */}
               <div className="grid grid-cols-3 gap-3 w-full max-w-2xl mt-7">
                 <div className="rounded-2xl bg-white/[0.03] border border-white/5 px-4 py-3.5 flex items-center gap-3 text-left">
                   <div className="w-9 h-9 rounded-lg bg-orange-500/15 text-orange-400 ring-1 ring-orange-500/30 flex items-center justify-center flex-shrink-0">
@@ -327,7 +320,6 @@ export default function Bookmarks() {
                 </div>
               </div>
 
-              {/* TAG FILTERS */}
               {bookmarks.length > 0 && tags.length > 1 && (
                 <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mt-6 max-w-full pb-1">
                   {tags.map((tag) => (
@@ -349,7 +341,6 @@ export default function Bookmarks() {
           </div>
         </div>
 
-        {/* CONTENT */}
         <div className="flex-1 overflow-y-auto">
           <div className="px-6 lg:px-8 py-6">
             {loading ? (
@@ -360,7 +351,6 @@ export default function Bookmarks() {
             ) : error ? (
               <div className="text-red-400 text-center py-24">{error}</div>
             ) : bookmarks.length === 0 ? (
-              /* EMPTY STATE WITH ILLUSTRATION */
               <div className="max-w-md mx-auto text-center py-16">
                 <div className="relative mx-auto w-40 h-40 mb-6">
                   <div className="absolute inset-0 bg-orange-500/10 blur-3xl rounded-full" />

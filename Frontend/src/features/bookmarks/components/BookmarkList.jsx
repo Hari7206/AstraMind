@@ -88,7 +88,6 @@ function BookmarkCard({ bookmark, onDelete, deleting }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // clipboard unavailable, ignore
     }
   };
 
@@ -249,7 +248,6 @@ export default function Bookmarks({ getBookmarks, deleteBookmark }) {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[#131313]">
-      {/* Header */}
       <div className="flex-shrink-0 bg-[#131313] border-b border-white/5 px-6 py-4">
         <h2 className="text-xl font-bold text-white">Bookmarks</h2>
         <p className="text-sm text-slate-400 mt-1">
@@ -257,7 +255,6 @@ export default function Bookmarks({ getBookmarks, deleteBookmark }) {
         </p>
       </div>
 
-      {/* Stats Bar */}
       <div className="flex-shrink-0 px-6 pt-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <StatCard label="Total Bookmarks" value={stats.total} icon={Bookmark} accent="orange" />
@@ -266,7 +263,6 @@ export default function Bookmarks({ getBookmarks, deleteBookmark }) {
         </div>
       </div>
 
-      {/* Search and Filters */}
       {bookmarks.length > 0 && (
         <div className="flex-shrink-0 px-6 pt-4 pb-2">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -301,7 +297,6 @@ export default function Bookmarks({ getBookmarks, deleteBookmark }) {
         </div>
       )}
 
-      {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 pt-4">
         {loading ? (
           <div className="text-slate-400 text-center py-16 flex flex-col items-center gap-2">

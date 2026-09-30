@@ -6,7 +6,6 @@ export function useBookmarks() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch all bookmarks
   const fetchBookmarks = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -22,13 +21,11 @@ export function useBookmarks() {
     }
   }, []);
 
-  // Save a new bookmark
   const saveBookmark = useCallback(async (bookmarkData) => {
     setLoading(true);
     setError(null);
     try {
       const response = await bookmarkApi.saveBookmark(bookmarkData);
-      // Refresh the list after saving
       await fetchBookmarks();
       return response;
     } catch (err) {
@@ -39,13 +36,11 @@ export function useBookmarks() {
     }
   }, [fetchBookmarks]);
 
-  // Delete a bookmark
   const deleteBookmark = useCallback(async (bookmarkId) => {
     setLoading(true);
     setError(null);
     try {
       const response = await bookmarkApi.deleteBookmark(bookmarkId);
-      // Refresh the list after deletion
       await fetchBookmarks();
       return response;
     } catch (err) {
@@ -56,7 +51,6 @@ export function useBookmarks() {
     }
   }, [fetchBookmarks]);
 
-  // Load bookmarks on mount
   useEffect(() => {
     fetchBookmarks();
   }, [fetchBookmarks]);
