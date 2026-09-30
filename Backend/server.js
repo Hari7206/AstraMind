@@ -11,11 +11,12 @@ import { initSocket } from "./src/sockets/server.socket.js";
 
 
 
+const port = process.env.PORT || 3000;
 const httpServer = http.createServer(app);
 initSocket(httpServer);
 
 conntecToDb()
 
-httpServer.listen(3000, () => {
+httpServer.listen(port, "0.0.0.0", () => {
 })
 

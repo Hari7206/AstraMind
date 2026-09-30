@@ -3,6 +3,14 @@ import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import { sendEmail } from "../services/mail.service.js";
 
+const backendUrl = process.env.BACKEND_URL || "http://localhost:3000";
+const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+const authCookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
+};
+
 async function register(req, res) {
     const { username, password, email } = req.body;
     const isAlreadyExist = await userModel.findOne({
@@ -32,7 +40,7 @@ async function register(req, res) {
         html: `<h1>Welcome to AstraMind</h1>
         <p>Thank you for registering with us. We are excited to have you on board!</p>
         <p>Please click the link below to verify your email address:</p>
-        <a href="http://localhost:3000/api/auth/verify-email?token=${emailVerificationToken}">Verify Email</a>
+        <a href="${backendUrl}/api/auth/verify-email?token=${emailVerificationToken}">Verify Email</a>
         <p>If you did not register for an account, please ignore this email.</p>
         <p>Best regards,<br>AstraMind Team</p>`
     });
@@ -71,7 +79,7 @@ async function verifyEmail(req, res) {
 
         const html = `<h1>Email Verified</h1>
         <p>Your email has been successfully verified. You can now log in to your account.</p>
-        <a href="http://localhost:3000/login">Go to Login</a>
+        <a href="${frontendUrl}/login">Go to Login</a>
         <p>Best regards,<br>AstraMind Team</p>`;
 
         res.send(html);
@@ -112,7 +120,7 @@ async function login(req, res) {
         });
     }
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET_KEY, { expiresIn: "7d" });
-    res.cookie("token", token);
+    res.cookie("token", token, authCookieOptions);
     return res.status(200).json({
         message: "Login successful",
         success: true,
@@ -145,11 +153,7 @@ async function getMe(req, res) {
 
 async function logout(req, res) {
     try {
-        res.clearCookie("token", {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax"
-        });
+        res.clearCookie("token", authCookieOptions);
         return res.status(200).json({
             message: "Logged out successfully",
             success: true

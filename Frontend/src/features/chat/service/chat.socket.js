@@ -1,9 +1,10 @@
 import { io } from "socket.io-client";
+import { SOCKET_URL } from "../../../config/api";
 
 let socket;
 
 export const initializeSocketConnection = (chatId, dispatch, actions) => {
-  socket = io("http://localhost:3000", {
+  socket = io(SOCKET_URL, {
     withCredentials: true,
   });
 
